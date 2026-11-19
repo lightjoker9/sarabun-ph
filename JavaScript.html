@@ -1,0 +1,1836 @@
+<script>
+const DEFAULT_DANGEROUS_GROUPS = [
+  {
+    group: "กลุ่มที่ 1 กิจการที่เกี่ยวกับสัตว์เลี้ยง",
+    types: [
+      {
+        type: "(1) การเพาะพันธุ์ เลี้ยง และการอนุบาลสัตว์ทุกชนิด",
+        subItems: [
+          { name: "1.1) การเพาะพันธุ์สัตว์", children: ["ก. การเพาะพันธุ์สัตว์บก", "ข. การเพาะพันธุ์สัตว์น้ำ", "ค. การเพาะพันธุ์สัตว์ปีก", "ง. การเพาะพันธุ์แมลง", "จ. การเพาะพันธุ์สัตว์เลื้อยคลาน หรือสัตว์ครึ่งบกครึ่งน้ำ"] },
+          { name: "1.2) การเลี้ยงสัตว์", children: [
+            { name: "ก. การเลี้ยงม้า โค กระบือ แพะ แกะ", details: ["ตั้งแต่ 3 ตัว แต่ไม่เกิน 10 ตัว", "ตั้งแต่ 11 ตัว แต่ไม่เกิน 20 ตัว", "ตั้งแต่ 21 ตัวขึ้นไป"] },
+            { name: "ข. การเลี้ยงสุกร", details: ["ตั้งแต่ 3 ตัว แต่ไม่เกิน 10 ตัว", "ตั้งแต่ 11 ตัว แต่ไม่เกิน 20 ตัว", "ตั้งแต่ 21 ตัว แต่ไม่เกิน 50 ตัว", "ตั้งแต่ 51 ตัวขึ้นไป"] },
+            { name: "ค. การเลี้ยงสุนัข แมว", details: ["ตั้งแต่ 10 ตัว แต่ไม่เกิน 20 ตัว", "ตั้งแต่ 21 ตัว แต่ไม่เกิน 50 ตัว", "ตั้งแต่ 51 ตัวขึ้นไป"] },
+            { name: "ง. การเลี้ยงสัตว์ปีก ห่าน เป็ด ไก่ นก", details: ["ตั้งแต่ 10 ตัว แต่ไม่เกิน 20 ตัว", "ตั้งแต่ 21 ตัว แต่ไม่เกิน 50 ตัว", "ตั้งแต่ 51 ตัวขึ้นไป"] }
+          ]}
+        ]
+      }
+    ]
+  }
+];
+
+function getDangerousGroups() {
+  const saved = localStorage.getItem('DANGEROUS_GROUPS_V5');
+  if (saved) { try { return JSON.parse(saved); } catch (e) {} }
+  return DEFAULT_DANGEROUS_GROUPS;
+}
+
+function getOrgSettings() {
+  const saved = localStorage.getItem('ORG_SETTINGS');
+  if (saved) { try { return JSON.parse(saved); } catch (e) {} }
+  return { orgName: "เทศบาลตำบลดอยสะเก็ด", orgSub: "กองสาธารณสุขและสิ่งแวดล้อม เทศบาลตำบลดอยสะเก็ด" };
+}
+
+function getAdminPassword() {
+  return localStorage.getItem('ADMIN_PWD') || '1111';
+}
+
+const CATEGORY_LABEL = {
+  'cert-food': 'หนังสือรับรองการแจ้ง การจำหน่ายอาหารหรือสะสมอาหาร (พื้นที่ไม่เกิน 200 ตร.ม.)',
+  'lic-food': 'ใบอนุญาต การจำหน่ายอาหารหรือสะสมอาหาร (พื้นที่เกิน 200 ตารางเมตรขึ้นไป)',
+  'lic-market': 'ใบอนุญาต การจัดตั้งตลาด',
+  'lic-health': 'ใบอนุญาต กิจการที่เป็นอันตรายต่อสุขภาพ',
+  'lic-public': 'ใบอนุญาต การจำหน่ายสินค้าในที่หรือทางสาธารณะ',
+  'lic-trash': 'ใบอนุญาต การเก็บ ขน หรือกำจัดสิ่งปฏิกูลหรือมูลฝอย'
+};
+
+const MENU_TITLES = Object.assign({
+  'dashboard': 'หน้าแรก / ภาพรวมระบบ',
+  'management': 'ค้นหาและจัดการทะเบียน',
+  'reports': 'รายงานและสถิติ',
+  'action-renew': 'ชำระค่าธรรมเนียม / ต่ออายุใบอนุญาต',
+  'action-edit-cancel': 'เปลี่ยนแปลง / ยกเลิกกิจการ',
+  'admin-settings': 'ตั้งค่าระบบ (Admin)'
+}, CATEGORY_LABEL);
+
+const PUBLIC_ZONES = [
+  'เขตผ่อนผันการจำหน่ายสินค้า ถนนทางหลวงท้องถิ่น ชม.ถ.17-26 สายบ้านลุงช่วง หมู่ที่ 3 ตำบลเชิงดอย (ร้านหมูอินเตอร์ ถึง สุสาน หมู่ที่ 3 ตำบลเชิงดอย)',
+  'เขตผ่อนผันการจำหน่ายสินค้า ถนนทางหลวงท้องถิ่น ชม.ถ.1-0092 (ถนนสายป่าคาเชื่อมบ้านป่าไม้แดง) สนามกีฬาเทศบาลตำบลดอยสะเก็ด ถึงบริษัท เชียงใหม่สุขสวัสดิ์ จำกัด สาขา ดอยสะเก็ด (ไหล่ทางทั้งสองฝั่งถนน)',
+  'เขตผ่อนผันการจำหน่ายสินค้า ถนนทางหลวงท้องถิ่น ชม.ถ.17-13 (ถนนสายหลังที่ว่าการอำเภอดอยสะเก็ด) ตั้งแต่สี่แยกสนามกีฬาเทศบาลตำบลดอยสะเก็ด ถึง หลังที่ทำการอำเภอดอยสะเก็ด ไหล่ทางทั้งสองฝั่งถนน'
+];
+
+const TH_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const TH_MONTHS_SHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const APP_TYPES = ['รายใหม่', 'รายเดิม', 'ต่ออายุ', 'ยกเลิกกิจการ'];
+
+let currentMenu = 'dashboard';
+let allData = [];
+let modalCallback = null;
+let pendingActionInfo = null;
+let mgmtState = { cat: 'all', kw: '', openId: '' };
+let renewState = { cat: 'all', kw: '', start: '', end: '' };
+let editState = { cat: 'all', kw: '' };
+
+document.addEventListener('DOMContentLoaded', function () {
+  switchMenu('dashboard');
+  loadData();
+});
+
+/* ===================== ฟังก์ชันช่วยทั่วไป ===================== */
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fv(form, name) { const el = form.elements[name]; return el ? String(el.value || '').trim() : ''; }
+function setText(id, t) { const el = document.getElementById(id); if (el) el.textContent = t; }
+function money(n) { return (parseFloat(n) || 0).toLocaleString('th-TH'); }
+function isCancelled(it) { return (it.appType || '').indexOf('ยกเลิก') !== -1; }
+function pad2(n) { return String(n).padStart(2, '0'); }
+function toIso(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+function todayIso() { return toIso(new Date()); }
+
+function parseIso(s) {
+  if (!s) return null;
+  if (s instanceof Date) return isNaN(s.getTime()) ? null : s;
+  const str = String(s).trim();
+  let m = str.match(/^(\d{4})[\/.-](\d{1,2})[\/.-](\d{1,2})/);
+  if (m) {
+    let y = +m[1];
+    if (y > 2400) y -= 543;
+    const d = new Date(y, +m[2] - 1, +m[3]);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  m = str.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);
+  if (m) {
+    let y = +m[3];
+    if (y > 2400) y -= 543;
+    const d = new Date(y, +m[2] - 1, +m[1]);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function calcExpireIso(issueIso) {
+  const p = parseIso(issueIso);
+  return p ? toIso(new Date(p.getFullYear() + 1, p.getMonth(), p.getDate() - 1)) : '';
+}
+
+function getExpDate(it) { return parseIso(it.expireDate) || parseIso(calcExpireIso(it.issueDate)); }
+function formatThaiDate(s) { const d = parseIso(s); return !d ? '-' : d.getDate() + ' ' + TH_MONTHS[d.getMonth()] + ' ' + (d.getFullYear() + 543); }
+function formatThaiShort(d) { return d.getDate() + ' ' + TH_MONTHS_SHORT[d.getMonth()] + ' ' + (d.getFullYear() + 543); }
+function addrOf(it) { return `เลขที่ ${it.appNo || '-'} หมู่ ${it.appMoo || '-'} ต.${it.appSubdistrict || 'เชิงดอย'} อ.${it.appDistrict || 'ดอยสะเก็ด'} จ.${it.appProvince || 'เชียงใหม่'}`; }
+
+const CLS_CANCEL = 'bg-rose-100 text-rose-800 font-bold dark:bg-rose-950/80 dark:text-rose-300';
+const CLS_NORMAL = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300';
+const CLS_SOON = 'bg-amber-100 text-amber-900 font-bold dark:bg-amber-950/80 dark:text-amber-300';
+const CLS_OVERDUE = 'bg-orange-100 text-orange-900 font-bold dark:bg-orange-950/80 dark:text-orange-300 border border-orange-300 dark:border-orange-800';
+const CLS_EXPIRED = 'bg-rose-200 text-rose-950 font-extrabold dark:bg-rose-900 dark:text-rose-200 border border-rose-400 dark:border-rose-700';
+
+function checkExpiration(it) {
+  if (isCancelled(it)) return { status: 'cancel', text: 'ยกเลิกกิจการ', cls: CLS_CANCEL, expStr: '-', days: null };
+  const exp = getExpDate(it);
+  if (!exp) return { status: 'normal', text: 'ปกติ', cls: CLS_NORMAL, expStr: '-', days: null };
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = Math.round((exp - today) / 86400000);
+  const expStr = formatThaiShort(exp);
+  if (days < 0) {
+    if (it.category === 'cert-food') return { status: 'expired', text: 'เลยกำหนด', cls: CLS_OVERDUE, expStr, days };
+    return { status: 'expired', text: 'หมดอายุ', cls: CLS_EXPIRED, expStr, days };
+  }
+  if (days <= 30) return { status: 'soon', text: 'ใกล้หมดอายุ', cls: CLS_SOON, expStr, days };
+  return { status: 'normal', text: 'ปกติ', cls: CLS_NORMAL, expStr, days };
+}
+
+function daysText(c) {
+  if (c.days == null) return '-';
+  return c.days < 0 ? `เกิน ${-c.days} วัน` : `เหลือ ${c.days} วัน`;
+}
+
+function latestRecords(list) {
+  const m = {};
+  (list || []).forEach(it => {
+    if (!it || !it.permanentId) return;
+    const k = (it.category || 'cert-food') + '|' + String(it.permanentId).trim();
+    if (!m[k] || Number(it.sheetRow || 0) > Number(m[k].sheetRow || 0)) {
+      m[k] = it;
+    }
+  });
+  return Object.keys(m).map(k => m[k]);
+}
+
+function historyOf(it) {
+  return allData.filter(x => x.category === it.category && x.permanentId === it.permanentId).sort((a, b) => a.sheetRow - b.sheetRow);
+}
+
+function categoryOptions(allText, selected) {
+  let html = '<option value="all"' + (selected === 'all' ? ' selected' : '') + '>' + allText + '</option>';
+  Object.keys(CATEGORY_LABEL).forEach(k => { html += '<option value="' + k + '"' + (k === selected ? ' selected' : '') + '>' + esc(CATEGORY_LABEL[k]) + '</option>'; });
+  return html;
+}
+
+function matchesKeyword(it, kw) {
+  if (!kw) return true;
+  kw = kw.toLowerCase();
+  return ['appName', 'shopName', 'permanentId', 'licenseType', 'pubGoods', 'receiptNo', 'appPhone', 'shopArea', 'Area / Length']
+    .some(k => String(it[k] || '').toLowerCase().includes(kw));
+}
+
+/* ===================== Toast / Modal / สิทธิ์ ===================== */
+function showToast(title, msg) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const el = document.createElement('div');
+  el.className = 'bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-xl text-xs font-medium flex items-center gap-3 transition-all duration-300 pointer-events-auto';
+  el.innerHTML = `<div><b>${esc(title)}</b><div class="text-[11px] opacity-90">${esc(msg)}</div></div>`;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function showModal(title, msg, type = 'warning', cb = null) {
+  modalCallback = cb;
+  setText('modalTitle', title);
+  setText('modalMessage', msg);
+  document.getElementById('customModal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('customModal').classList.add('hidden');
+  if (modalCallback) { const cb = modalCallback; modalCallback = null; cb(); }
+}
+
+function openAdminAuth(action) {
+  pendingActionInfo = action;
+  const pwdInput = document.getElementById('adminPasswordInput');
+  if (pwdInput) pwdInput.value = '';
+  document.getElementById('adminAuthModal').classList.remove('hidden');
+  if (pwdInput) setTimeout(() => pwdInput.focus(), 100);
+}
+
+function closeAdminAuthModal() {
+  document.getElementById('adminAuthModal').classList.add('hidden');
+  pendingActionInfo = null;
+}
+
+function requestAdminAccess() { openAdminAuth({ type: 'settings' }); }
+function requestDeleteRecord(idx) { openAdminAuth({ type: 'delete', idx }); }
+function requestCancelEstablishment(idx) { openAdminAuth({ type: 'cancel', idx }); }
+
+function verifyAdminPassword() {
+  const pwd = document.getElementById('adminPasswordInput').value;
+  if (pwd !== getAdminPassword()) {
+    showModal('รหัสผ่านไม่ถูกต้อง', 'กรุณาตรวจสอบรหัสผ่านผู้ดูแลระบบอีกครั้ง', 'error');
+    return;
+  }
+  const action = pendingActionInfo;
+  closeAdminAuthModal();
+  if (!action) return;
+  if (action.type === 'delete') executeDeleteRecord(action.idx);
+  else if (action.type === 'cancel') executeCancelEstablishment(action.idx);
+  else if (action.type === 'settings') switchMenu('admin-settings');
+}
+
+function failHandler(title) {
+  return function (err) { showModal(title || 'ข้อผิดพลาด', (err && err.message) || String(err), 'error'); };
+}
+
+/* ===================== โหลดข้อมูล / เปลี่ยนเมนู ===================== */
+function updateRenewBadge() {
+  const n = latestRecords(allData).filter(it => { const s = checkExpiration(it).status; return s === 'expired' || s === 'soon'; }).length;
+  setText('renewBadge', n);
+}
+
+function fetchData(onDone) {
+  google.script.run
+    .withSuccessHandler(function (data) {
+      allData = Array.isArray(data) ? data : [];
+      updateRenewBadge();
+      if (typeof onDone === 'function') onDone();
+    })
+    .withFailureHandler(failHandler('โหลดข้อมูลไม่สำเร็จ'))
+    .getEstablishmentsData();
+}
+
+function loadData() { fetchData(() => refreshView(false)); }
+function reloadAndRestoreState() { fetchData(softRefresh); }
+
+function switchMenu(menuId) {
+  currentMenu = menuId;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active-menu'));
+  const active = document.getElementById('menu-' + menuId);
+  if (active) active.classList.add('active-menu');
+  setText('pageHeaderTitle', MENU_TITLES[menuId] || 'ระบบจัดการหนังสือรับรองการแจ้งและใบอนุญาตสาธารณสุข');
+  refreshView(true);
+}
+
+function refreshView(force) {
+  updateStats();
+  if (!force && CATEGORY_LABEL[currentMenu]) {
+    const f = document.getElementById('recordForm');
+    if (f && f.dataset.category === currentMenu) return;
+  }
+  if (currentMenu === 'dashboard') renderDashboardView();
+  else if (currentMenu === 'management') renderManagementView();
+  else if (currentMenu === 'action-renew') renderRenewListView();
+  else if (currentMenu === 'action-edit-cancel') renderEditCancelListView();
+  else if (currentMenu === 'reports') renderReportsView();
+  else if (currentMenu === 'admin-settings') renderAdminSettingsView();
+  else if (CATEGORY_LABEL[currentMenu]) renderFormView(currentMenu);
+}
+
+function softRefresh() {
+  updateStats();
+  if (currentMenu === 'management') filterTableData();
+  else if (currentMenu === 'action-renew') updateRenewTable();
+  else if (currentMenu === 'action-edit-cancel') updateEditCancelTable();
+  else refreshView(false);
+}
+
+function updateStats() {
+  let rows = allData;
+  if (CATEGORY_LABEL[currentMenu] !== undefined) rows = rows.filter(x => x.category === currentMenu);
+  const latestList = latestRecords(rows);
+  setText('statCatTotal', latestList.length.toLocaleString() + ' รายการ');
+  setText('statCatNew', latestList.filter(x => x.appType === 'รายใหม่').length.toLocaleString() + ' รายการ');
+  setText('statCatRenew', latestList.filter(it => checkExpiration(it).status === 'expired').length.toLocaleString() + ' รายการ');
+  setText('statCatCancel', latestList.filter(it => checkExpiration(it).status === 'soon').length.toLocaleString() + ' รายการ');
+  setText('statFee', money(rows.reduce((s, x) => s + (parseFloat(x.fee) || 0), 0)) + ' บาท');
+}
+
+/* ===================== หน้าแรก (แดชบอร์ด) ===================== */
+function renderDashboardView() {
+  const alerts = latestRecords(allData)
+    .filter(it => { const s = checkExpiration(it).status; return s === 'expired' || s === 'soon'; })
+    .sort((a, b) => (checkExpiration(a).days || 0) - (checkExpiration(b).days || 0));
+  const recent = allData.slice().sort((a, b) => b.sheetRow - a.sheetRow).slice(0, 10);
+
+  let alertRows = alerts.length ? '' : '<tr><td colspan="6" class="text-center py-8 text-slate-400 dark:text-slate-500">🎉 ไม่มีรายการหมดอายุหรือใกล้หมดอายุในขณะนี้</td></tr>';
+  alerts.forEach(it => {
+    const c = checkExpiration(it);
+    alertRows += `<tr class="border-b border-slate-100 dark:border-slate-800/80 hover:bg-slate-50/80 dark:hover:bg-slate-900/50 transition">
+      <td class="py-4 px-4 font-bold text-emerald-600 dark:text-emerald-400">${esc(it.permanentId)}</td>
+      <td class="py-4 px-4 font-semibold text-slate-800 dark:text-slate-200">${esc(it.shopName)}</td>
+      <td class="py-4 px-4 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">${esc(it.licenseType)}</td>
+      <td class="py-4 px-4 text-slate-700 dark:text-slate-300">${esc(it.appName)}</td>
+      <td class="py-4 px-4 font-medium text-slate-700 dark:text-slate-300">${c.expStr}</td>
+      <td class="py-4 px-4"><span class="px-3 py-1 rounded-xl text-xs font-bold ${c.cls}">${c.text}</span></td>
+    </tr>`;
+  });
+
+  let recentRows = recent.length ? '' : '<tr><td colspan="6" class="text-center py-10 text-slate-400 dark:text-slate-500">ยังไม่มีข้อมูลบันทึกในระบบ</td></tr>';
+  recent.forEach(it => {
+    const c = checkExpiration(it);
+    recentRows += `<tr class="border-b border-slate-100 dark:border-slate-800/80 hover:bg-slate-50/80 dark:hover:bg-slate-900/50 transition">
+      <td class="py-4 px-4 font-bold text-emerald-600 dark:text-emerald-400">${esc(it.permanentId)}</td>
+      <td class="py-4 px-4 font-semibold text-slate-800 dark:text-slate-200">${esc(it.shopName)}</td>
+      <td class="py-4 px-4 text-xs text-slate-600 dark:text-slate-300">${esc(it.appType)}</td>
+      <td class="py-4 px-4 text-center"><span class="px-3 py-1 rounded-xl text-xs font-bold ${c.cls}">${c.text}</span></td>
+      <td class="py-4 px-4 text-slate-700 dark:text-slate-300">${esc(it.appName)}</td>
+      <td class="py-4 px-4 text-purple-600 dark:text-purple-400 font-bold">${money(it.fee)} บาท</td>
+    </tr>`;
+  });
+
+  document.getElementById('mainContentContainer').innerHTML = `
+    <div class="space-y-6 w-full">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+          <h4 class="font-bold text-sm mb-4 text-slate-700 dark:text-slate-200">📊 สถิติจำนวนสถานประกอบการแยกตามประเภท</h4>
+          <div class="relative h-64"><canvas id="categoryChart"></canvas></div>
+        </div>
+        <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+          <h4 class="font-bold text-sm mb-4 text-slate-700 dark:text-slate-200">💰 สถิติการจัดเก็บค่าธรรมเนียมรายเดือน</h4>
+          <div class="relative h-64"><canvas id="feeChart"></canvas></div>
+        </div>
+      </div>
+      <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+          <h3 class="font-bold text-rose-600 dark:text-rose-400 text-sm">🔔 แจ้งเตือนหมดอายุ / ใกล้หมดอายุ (ภายใน 30 วัน)</h3>
+          <span class="px-3.5 py-1 bg-rose-50 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 font-extrabold rounded-xl text-xs">${alerts.length} รายการ</span>
+        </div>
+        <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50/70 dark:bg-slate-800/60 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400"><tr><th class="py-3 px-4">รหัส</th><th class="py-3 px-4">สถานประกอบการ</th><th class="py-3 px-4">ประเภท</th><th class="py-3 px-4">ผู้ขอ</th><th class="py-3 px-4">วันหมดอายุ</th><th class="py-3 px-4">สถานะ</th></tr></thead><tbody>${alertRows}</tbody></table></div>
+      </div>
+      <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+          <h3 class="font-bold text-sm text-slate-800 dark:text-slate-100">📊 รายการบันทึกล่าสุดในระบบ</h3>
+          <button onclick="loadData()" class="px-4 py-1.5 bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 rounded-xl text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition">🔄 รีเฟรชข้อมูล</button>
+        </div>
+        <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50/70 dark:bg-slate-800/60 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400"><tr><th class="py-3 px-4">รหัสถาวร</th><th class="py-3 px-4">สถานประกอบการ</th><th class="py-3 px-4">สถานะคำขอ</th><th class="py-3 px-4 text-center">สถานะใบอนุญาต</th><th class="py-3 px-4">ผู้ยื่นคำขอ</th><th class="py-3 px-4">ค่าธรรมเนียม</th></tr></thead><tbody>${recentRows}</tbody></table></div>
+      </div>
+    </div>`;
+
+  setTimeout(initDashboardCharts, 100);
+}
+
+function initDashboardCharts() {
+  if (typeof Chart === 'undefined') return;
+  const isDark = document.documentElement.classList.contains('dark');
+  const textColor = isDark ? '#cbd5e1' : '#0f172a';
+  const gridColor = isDark ? '#334155' : '#e2e8f0';
+
+  const catCounts = {};
+  const latest = latestRecords(allData);
+  latest.forEach(it => {
+    const name = CATEGORY_LABEL[it.category] || it.category || 'อื่นๆ';
+    catCounts[name] = (catCounts[name] || 0) + 1;
+  });
+
+  const labels = Object.keys(catCounts);
+  const dataValues = Object.values(catCounts);
+  if (labels.length === 0) {
+    labels.push('ยังไม่มีข้อมูล');
+    dataValues.push(1);
+  }
+
+  if (window.myCategoryChart instanceof Chart) {
+    window.myCategoryChart.destroy();
+  }
+
+  const catCtx = document.getElementById('categoryChart');
+  if (catCtx) {
+    window.myCategoryChart = new Chart(catCtx, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: dataValues,
+          backgroundColor: labels.length === 1 && labels[0] === 'ยังไม่มีข้อมูล' ? ['#cbd5e1'] : ['#38bdf8', '#c084fc', '#facc15', '#fb7185', '#22d3ee', '#f472b6', '#4ade80'],
+          borderWidth: 3,
+          borderColor: isDark ? '#0f172a' : '#ffffff'
+        }]
+      },
+      options: { 
+        responsive: true, 
+        maintainAspectRatio: false, 
+        plugins: { 
+          legend: { 
+            position: 'bottom', 
+            labels: { 
+              boxWidth: 14, 
+              color: textColor,
+              font: { size: 12, family: 'Sarabun', weight: '700' },
+              generateLabels: function(chart) {
+                const data = chart.data;
+                if (data.labels.length && data.datasets.length) {
+                  return data.labels.map((label, i) => {
+                    let shortName = label;
+                    if (shortName.length > 25) shortName = shortName.substring(0, 25) + '...';
+                    return {
+                      text: labels.length === 1 && labels[0] === 'ยังไม่มีข้อมูล' ? 'ยังไม่มีข้อมูลในระบบ' : `${shortName} (${data.datasets[0].data[i]} ราย)`,
+                      fillStyle: data.datasets[0].backgroundColor[i] || '#cbd5e1',
+                      strokeStyle: isDark ? '#0f172a' : '#ffffff',
+                      lineWidth: 2,
+                      hidden: false,
+                      index: i
+                    };
+                  });
+                }
+                return [];
+              }
+            } 
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                if (labels.length === 1 && labels[0] === 'ยังไม่มีข้อมูล') return ' ไม่มีข้อมูลในระบบ';
+                let label = context.label || '';
+                let value = context.raw || 0;
+                return ` ${label}: ${value} รายการ`;
+              }
+            }
+          }
+        } 
+      }
+    });
+  }
+
+  const monthlyFees = new Array(12).fill(0);
+  allData.forEach(it => {
+    if (it.issueDate) {
+      const d = parseIso(it.issueDate);
+      if (d) {
+        const m = d.getMonth();
+        monthlyFees[m] += parseFloat(it.fee) || 0;
+      }
+    }
+  });
+
+  if (window.myFeeChart instanceof Chart) {
+    window.myFeeChart.destroy();
+  }
+
+  const feeCtx = document.getElementById('feeChart');
+  if (feeCtx) {
+    window.myFeeChart = new Chart(feeCtx, {
+      type: 'bar',
+      data: {
+        labels: TH_MONTHS_SHORT,
+        datasets: [{
+          label: 'ยอดจัดเก็บ (บาท)',
+          data: monthlyFees,
+          backgroundColor: '#34d399',
+          borderRadius: 8
+        }]
+      },
+      options: { 
+        responsive: true, 
+        maintainAspectRatio: false, 
+        plugins: { 
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return ` ยอดจัดเก็บ: ${money(context.raw)} บาท`;
+              }
+            }
+          }
+        }, 
+        scales: { 
+          x: { ticks: { color: textColor, font: { family: 'Sarabun', weight: '700' } }, grid: { color: gridColor } },
+          y: { beginAtZero: true, ticks: { color: textColor, font: { family: 'Sarabun', weight: '700' } }, grid: { color: gridColor } } 
+        } 
+      }
+    });
+  }
+}
+
+/* ===================== ค้นหาและจัดการทะเบียน ===================== */
+function renderManagementView() {
+  document.getElementById('mainContentContainer').innerHTML = `
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xl p-6 md:p-8 space-y-6 w-full text-slate-800 dark:text-slate-100">
+      <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
+        <div>
+          <h3 class="font-bold text-base text-slate-800 dark:text-slate-100">🗂️ ค้นหาและจัดการทะเบียนสถานประกอบการ</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">คลิกปุ่มแว่นขยาย 🔍 เพื่อตรวจสอบรายละเอียด ประวัติ และจัดการข้อมูล</p>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+          <select id="categoryFilter" onchange="filterTableData()" class="inp sm:w-80 font-semibold">${categoryOptions('📂 ทุกประเภทกิจการ', mgmtState.cat)}</select>
+          <input id="searchInput" oninput="filterTableData()" value="${esc(mgmtState.kw)}" placeholder="พิมพ์ชื่อผู้ขอ, ชื่อร้าน หรือเลขรหัส..." class="inp sm:w-72">
+        </div>
+      </div>
+      <div class="overflow-x-auto rounded-2xl border border-slate-200/60 dark:border-slate-800">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-50/80 dark:bg-slate-800/60 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <tr>
+              <th class="py-4 px-4 w-36">รหัสถาวร</th>
+              <th class="py-4 px-4">ชื่อสถานประกอบการ / ตลาด / แผง</th>
+              <th class="py-4 px-4">ประเภทใบอนุญาต</th>
+              <th class="py-4 px-4">ผู้ขอ / เจ้าของ</th>
+              <th class="py-4 px-4 w-28">โทรศัพท์</th>
+              <th class="py-4 px-4 w-28 text-center">สถานะ</th>
+              <th class="py-4 px-4 text-center w-20">รายละเอียด</th>
+            </tr>
+          </thead>
+          <tbody id="managementTableBody" class="divide-y divide-slate-100 dark:divide-slate-800/60"></tbody>
+        </table>
+      </div>
+    </div>`;
+  filterTableData();
+}
+
+function filterTableData() {
+  const catEl = document.getElementById('categoryFilter');
+  const kwEl = document.getElementById('searchInput');
+  if (catEl) mgmtState.cat = catEl.value;
+  if (kwEl) mgmtState.kw = kwEl.value.trim();
+
+  let list = latestRecords(allData);
+  if (mgmtState.cat !== 'all') list = list.filter(x => x.category === mgmtState.cat);
+  if (mgmtState.kw) list = list.filter(x => matchesKeyword(x, mgmtState.kw));
+  list.sort((a, b) => String(b.permanentId).localeCompare(String(a.permanentId)));
+
+  const tbody = document.getElementById('managementTableBody');
+  if (!tbody) return;
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center py-16 text-slate-400 dark:text-slate-500 font-medium">❌ ไม่พบข้อมูลสถานประกอบการตามเงื่อนไขที่ค้นหา</td></tr>'; return; }
+
+  let html = '';
+  list.forEach(it => {
+    const idx = allData.indexOf(it);
+    const c = checkExpiration(it);
+    const key = 'row_detail_' + idx;
+    const box = 'bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs';
+    const tag = 'text-[11.5px] text-emerald-600 dark:text-emerald-400 font-extrabold uppercase tracking-wider block';
+
+    let specificDetailHTML = '';
+    if (it.category === 'lic-market') {
+      specificDetailHTML = `<div class="${box} space-y-2"><span class="${tag}">🛒 ข้อมูลตลาด</span>
+        <p class="font-bold text-slate-800 dark:text-slate-100">จำนวนแผงค้า: <span class="text-emerald-600 dark:text-emerald-400">${esc(it.marketStalls || 0)}</span> แผง</p>
+        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">ประเภท: ${esc(it.licenseType)}</p></div>`;
+    } else if (it.category === 'lic-health') {
+      specificDetailHTML = `<div class="${box} md:col-span-3 space-y-2.5"><span class="${tag}">⚠️ ข้อมูลกิจการที่เป็นอันตรายต่อสุขภาพ (โครงสร้าง 5 ระดับ)</span>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs leading-relaxed">
+          <div class="py-1 border-b border-slate-100 dark:border-slate-800"><span class="font-semibold text-slate-400 dark:text-slate-500 block mb-0.5">กลุ่ม (ระดับ 1):</span> <span class="text-slate-700 dark:text-slate-300 font-medium">${esc(it.healthGroup || '-')}</span></div>
+          <div class="py-1 border-b border-slate-100 dark:border-slate-800"><span class="font-semibold text-slate-400 dark:text-slate-500 block mb-0.5">ประเภท (ระดับ 2):</span> <span class="text-slate-700 dark:text-slate-300 font-medium">${esc(it.healthType || '-')}</span></div>
+          <div class="py-1 border-b border-slate-100 dark:border-slate-800"><span class="font-semibold text-slate-400 dark:text-slate-500 block mb-0.5">ประเภทย่อย (ระดับ 3):</span> <span class="text-slate-700 dark:text-slate-300 font-medium">${esc(it.healthSub || '-')}</span></div>
+          <div class="py-1 border-b border-slate-100 dark:border-slate-800"><span class="font-semibold text-slate-400 dark:text-slate-500 block mb-0.5">ประเภทย่อยลงมา (ระดับ 4):</span> <span class="text-slate-700 dark:text-slate-300 font-medium">${esc(it.healthChild || '-')}</span></div>
+          <div class="md:col-span-2 pt-1"><span class="font-semibold text-slate-400 dark:text-slate-500 block mb-0.5">รายละเอียด (ระดับ 5):</span> <span class="text-slate-700 dark:text-slate-300 font-medium">${esc(it.healthDetail || '-')}</span></div>
+        </div></div>`;
+    } else if (it.category === 'lic-public') {
+      specificDetailHTML = `<div class="${box} space-y-2"><span class="${tag}">🛍️ ข้อมูลจำหน่ายสินค้าในที่สาธารณะ</span>
+        <p class="font-bold text-slate-800 dark:text-slate-100">ชนิดสินค้า: <span class="text-slate-700 dark:text-slate-300 font-normal block mt-0.5">${esc(it.pubGoods || '-')}</span></p>
+        <p class="text-xs text-slate-500 dark:text-slate-400">ผู้ช่วยขาย: ${esc(it.pubAssistants || 0)} คน | ขนาดพื้นที่: <span class="font-bold text-emerald-600 dark:text-emerald-400">${money(it['Area / Length'] || it.shopAreaSize)}</span> ตร.ม.</p>
+        <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">📍 เขตผ่อนผัน / ที่ตั้ง: <span class="font-semibold">${esc(it.shopArea || '-')}</span></p>
+        ${it.remark ? `<p class="text-xs text-slate-500 dark:text-slate-400">📝 หมายเหตุ: ${esc(it.remark)}</p>` : ''}</div>`;
+    } else if (it.category === 'lic-trash') {
+      specificDetailHTML = `<div class="${box} space-y-2"><span class="${tag}">♻️ ข้อมูลสิ่งปฏิกูลและมูลฝอย</span>
+        <p class="font-bold text-slate-800 dark:text-slate-100">ประเภทขยะ: <span class="text-slate-700 dark:text-slate-300">${esc(it.trashType || '-')}</span></p>
+        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">ลักษณะ: ${esc(it.trashSubtype || '-')}</p></div>`;
+    } else {
+      specificDetailHTML = `<div class="${box} space-y-2"><span class="${tag}">📐 ข้อมูลพื้นที่ประกอบการ</span>
+        <p class="font-bold text-slate-800 dark:text-slate-100">พื้นที่รวม: <span class="text-emerald-600 dark:text-emerald-400">${money(it.shopArea)}</span> ตร.ม.</p></div>`;
+    }
+
+    const hist = historyOf(it);
+    let histRows = '';
+    hist.forEach(h => {
+      const hIdx = allData.indexOf(h);
+      histRows += `<tr class="border-b border-slate-100 dark:border-slate-800/80 bg-white dark:bg-slate-900 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition">
+        <td class="py-3.5 px-4 font-bold text-emerald-700 dark:text-emerald-400">${esc(h.appType)}</td>
+        <td class="py-3.5 px-4 text-slate-700 dark:text-slate-300">${formatThaiDate(h.issueDate)}</td>
+        <td class="py-3.5 px-4 text-slate-700 dark:text-slate-300">${formatThaiDate(h.expireDate)}</td>
+        <td class="py-3.5 px-4 font-medium text-slate-700 dark:text-slate-300">${esc(h.receiptNo || '-')}</td>
+        <td class="py-3.5 px-4 text-right font-bold text-purple-600 dark:text-purple-400">${money(h.fee)} บาท</td>
+        <td class="py-3.5 px-4 text-center space-x-1.5 whitespace-nowrap">
+          <button onclick="openEditModal(${hIdx})" class="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 rounded-xl text-xs font-bold border border-amber-200/60 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition">✏️ แก้ไข</button>
+          <button onclick="requestDeleteRecord(${hIdx})" class="px-3 py-1.5 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 rounded-xl text-xs font-bold border border-rose-200/60 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/40 transition">🗑️ ลบ</button>
+        </td>
+      </tr>`;
+    });
+
+    html += `<tr class="border-b border-slate-100 dark:border-slate-800/80 hover:bg-slate-50/80 dark:hover:bg-slate-900/50 transition">
+      <td class="py-4 px-4 font-bold text-emerald-600 dark:text-emerald-400">${esc(it.permanentId)}</td>
+      <td class="py-4 px-4 font-semibold text-slate-800 dark:text-slate-200 leading-snug">${esc(it.shopName)}</td>
+      <td class="py-4 px-4 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">${esc(it.licenseType)}</td>
+      <td class="py-4 px-4 text-slate-700 dark:text-slate-300">${esc(it.appName)}</td>
+      <td class="py-4 px-4 text-slate-600 dark:text-slate-400 text-xs font-medium">${esc(it.appPhone || '-')}</td>
+      <td class="py-4 px-4 text-center"><span class="px-3.5 py-1 rounded-xl text-xs font-bold ${c.cls}">${c.text}</span></td>
+      <td class="py-4 px-4 text-center"><button id="btn_${key}" onclick="toggleDetailRow('${key}')" class="w-9 h-9 bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 rounded-xl font-bold flex items-center justify-center mx-auto border border-emerald-200/60 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition" title="ดูรายละเอียด">🔍</button></td>
+    </tr>
+    <tr class="bg-slate-50/40 dark:bg-slate-900/30 border-b border-slate-200 dark:border-slate-800"><td colspan="7" class="p-0"><div id="${key}" class="accordion-content">
+      <div class="p-6 md:p-8 bg-gradient-to-br from-emerald-50/40 via-teal-50/20 to-transparent dark:from-slate-900 dark:to-emerald-950/20 rounded-2xl m-4 border border-emerald-200/60 dark:border-slate-800 shadow-inner space-y-6">
+        <div class="flex flex-wrap justify-between items-center gap-3 border-b border-emerald-200/60 dark:border-slate-800 pb-4">
+          <div>
+            <h4 class="font-extrabold text-emerald-900 dark:text-emerald-300 text-sm">🏢 รายละเอียดข้อมูลสถานประกอบการ</h4>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">ประเภททะเบียน: <span class="font-semibold text-slate-700 dark:text-slate-300">${esc(CATEGORY_LABEL[it.category] || it.category)}</span></p>
+          </div>
+          <div class="flex items-center gap-2.5">
+            <button onclick="openEditModal(${idx})" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-xs transition">✏️ แก้ไขข้อมูล</button>
+            <span class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-extrabold shadow-xs">รหัส: ${esc(it.permanentId)}</span>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 text-sm">
+          <div class="${box} space-y-2.5">
+            <span class="${tag}">👤 ผู้ยื่นคำขอ / เจ้าของ</span>
+            <p class="font-bold text-slate-800 dark:text-slate-100 text-base leading-snug">${esc(it.appName)}</p>
+            <p class="text-xs text-slate-600 dark:text-slate-400">📞 โทรศัพท์: <span class="font-semibold">${esc(it.appPhone || '-')}</span></p>
+            <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">📍 ที่อยู่: ${esc(addrOf(it))}</p>
+          </div>
+          ${specificDetailHTML}
+          <div class="${box} space-y-2.5">
+            <span class="${tag}">💰 การเงินและใบอนุญาตล่าสุด</span>
+            <p class="font-bold text-purple-600 dark:text-purple-400 text-base">ค่าธรรมเนียม: ${money(it.fee)} บาท</p>
+            <p class="text-xs text-slate-600 dark:text-slate-400">🧾 เลขที่ใบเสร็จ: <span class="font-semibold">${esc(it.receiptNo || '-')}</span></p>
+            <p class="text-xs text-slate-600 dark:text-slate-400">📅 วันที่อนุญาต: <span class="font-semibold">${formatThaiDate(it.issueDate)}</span></p>
+            <p class="text-xs text-slate-600 dark:text-slate-400">⏳ วันหมดอายุ: <span class="font-semibold text-rose-600 dark:text-rose-400">${formatThaiDate(it.expireDate)}</span> (${daysText(c)})</p>
+          </div>
+        </div>
+        <div class="space-y-3 pt-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">📜 ประวัติการชำระค่าธรรมเนียมและการต่ออายุย้อนหลัง</span>
+            <span class="text-[11px] text-slate-400">รวมประวัติทั้งสิ้น ${hist.length} รายการ</span>
+          </div>
+          <div class="overflow-x-auto rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                <tr><th class="py-3.5 px-4">สถานะคำขอ</th><th class="py-3.5 px-4">วันที่ชำระเงิน</th><th class="py-3.5 px-4">วันหมดอายุ</th><th class="py-3.5 px-4">เลขที่ใบเสร็จ</th><th class="py-3.5 px-4 text-right">ค่าธรรมเนียม</th><th class="py-3.5 px-4 text-center">จัดการประวัติ</th></tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">${histRows}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div></td></tr>`;
+  });
+  tbody.innerHTML = html;
+
+  if (mgmtState.openId) {
+    const target = list.find(x => (x.category + '|' + x.permanentId) === mgmtState.openId);
+    if (target) {
+      const k = 'row_detail_' + allData.indexOf(target);
+      const boxEl = document.getElementById(k);
+      const btn = document.getElementById('btn_' + k);
+      if (boxEl) boxEl.classList.add('open');
+      if (btn) btn.textContent = '🔼';
+    }
+  }
+}
+
+function toggleDetailRow(key) {
+  const el = document.getElementById(key);
+  if (!el) return;
+  const open = el.classList.contains('open');
+  document.querySelectorAll('.accordion-content').forEach(x => x.classList.remove('open'));
+  document.querySelectorAll('[id^="btn_row_detail_"]').forEach(b => b.textContent = '🔍');
+  const it = allData[parseInt(key.replace('row_detail_', ''), 10)];
+  if (!open) {
+    el.classList.add('open');
+    document.getElementById('btn_' + key).textContent = '🔼';
+    mgmtState.openId = it ? (it.category + '|' + it.permanentId) : '';
+  } else {
+    mgmtState.openId = '';
+  }
+}
+
+/* ===================== หน้าต่างแก้ไขข้อมูล ===================== */
+const EDIT_FIELDS_COMMON = [
+  ['appName', 'ชื่อผู้ยื่นคำขอ / เจ้าของ'], ['appPhone', 'หมายเลขโทรศัพท์'],
+  ['appNo', 'ที่อยู่ผู้ขอ: เลขที่'], ['appMoo', 'ที่อยู่ผู้ขอ: หมู่ที่'], ['appSubdistrict', 'ที่อยู่ผู้ขอ: ตำบล'],
+  ['shopName', 'ชื่อสถานประกอบการ / ตลาด / แผง'], ['licenseType', 'ประเภทใบอนุญาต'],
+  ['fee', 'ค่าธรรมเนียม (บาท)', 'number'], ['receiptNo', 'เลขที่ใบเสร็จ'],
+  ['issueDate', 'วันที่อนุญาต / วันที่ชำระเงิน', 'date'], ['expireDate', 'วันหมดอายุ', 'date'],
+  ['appType', 'สถานะคำขอ', 'select']
+];
+const SHOP_LOC_FIELDS = [['shopNo', 'ที่ตั้ง: เลขที่'], ['shopMoo', 'ที่ตั้ง: หมู่ที่'], ['shopSubdistrict', 'ที่ตั้ง: ตำบล']];
+const EDIT_FIELDS_EXTRA = {
+  'cert-food': [['shopArea', 'พื้นที่ (ตร.ม.)', 'number']].concat(SHOP_LOC_FIELDS),
+  'lic-food': [['shopArea', 'พื้นที่ (ตร.ม.)', 'number']].concat(SHOP_LOC_FIELDS),
+  'lic-market': [['marketStalls', 'จำนวนแผงค้า (แผง)', 'number']].concat(SHOP_LOC_FIELDS),
+  'lic-health': [['healthGroup', 'กลุ่ม (ระดับ 1)'], ['healthType', 'ประเภท (ระดับ 2)'], ['healthSub', 'ประเภทย่อย (ระดับ 3)'], ['healthChild', 'ประเภทย่อยลงมา (ระดับ 4)'], ['healthDetail', 'รายละเอียด (ระดับ 5)'], ['shopArea', 'พื้นที่ (ตร.ม.)', 'number']].concat(SHOP_LOC_FIELDS),
+  'lic-public': [['pubGoods', 'ชนิดสินค้า'], ['pubAssistants', 'จำนวนผู้ช่วยขาย (คน)', 'number'], ['Area / Length', 'ขนาดพื้นที่ (ตร.ม.)', 'number'], ['shopArea', 'เขตผ่อนผัน / ที่ตั้ง', 'zone']],
+  'lic-trash': [['trashType', 'ประเภทขยะ / สิ่งปฏิกูล'], ['trashSubtype', 'ประเภทใบอนุญาตประกอบกิจการ']]
+};
+
+function openEditModal(idx) {
+  const it = allData[idx];
+  const form = document.getElementById('editForm');
+  if (!it || !form) return;
+
+  form.elements['category'].value = it.category;
+  form.elements['sheetRow'].value = it.sheetRow;
+  form.elements['sheetName'].value = it.sheetName;
+
+  const fields = EDIT_FIELDS_COMMON.concat(EDIT_FIELDS_EXTRA[it.category] || []).concat([['remark', 'หมายเหตุ', 'textarea']]);
+  let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+  fields.forEach(f => {
+    const name = f[0], label = f[1], type = f[2] || 'text';
+    const v = it[name] == null ? '' : String(it[name]);
+    const nameAttr = `name="${esc(name)}"`;
+    let input = '';
+    if (type === 'select') {
+      const opts = APP_TYPES.indexOf(v) === -1 && v ? [v].concat(APP_TYPES) : APP_TYPES;
+      input = `<select ${nameAttr} class="inp">${opts.map(o => `<option value="${esc(o)}"${o === v ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+    } else if (type === 'zone') {
+      const zones = PUBLIC_ZONES.indexOf(v) === -1 && v ? [v].concat(PUBLIC_ZONES) : PUBLIC_ZONES;
+      input = `<select ${nameAttr} class="inp">${zones.map(z => `<option value="${esc(z)}"${z === v ? ' selected' : ''}>${esc(z)}</option>`).join('')}</select>`;
+    } else if (type === 'textarea') {
+      input = `<textarea ${nameAttr} rows="3" class="inp">${esc(v)}</textarea>`;
+    } else if (type === 'date') {
+      const dv = parseIso(v) ? toIso(parseIso(v)) : '';
+      const extra = name === 'issueDate' ? ' onchange="onEditIssueDateChange(this.value)"' : '';
+      input = `<input type="date" ${nameAttr} value="${esc(dv)}" class="inp"${extra}>`;
+    } else if (type === 'number') {
+      input = `<input type="number" step="0.01" ${nameAttr} value="${esc(v)}" class="inp">`;
+    } else {
+      input = `<input ${nameAttr} value="${esc(v)}" class="inp">`;
+    }
+    const wide = (type === 'textarea' || type === 'zone') ? ' md:col-span-2' : '';
+    html += `<div class="${wide.trim()}"><label class="lbl">${esc(label)}</label>${input}</div>`;
+  });
+  html += '</div><p class="text-xs text-slate-500 dark:text-slate-400">💡 เมื่อเปลี่ยนวันที่อนุญาต ระบบจะคำนวณวันหมดอายุใหม่ให้อัตโนมัติ (แก้ไขเองได้)</p>';
+
+  document.getElementById('editFormBody').innerHTML = html;
+  setText('editModalTitle', 'แก้ไขข้อมูล: ' + (it.shopName || '-') + ' (' + it.permanentId + ')');
+  document.getElementById('editModal').classList.remove('hidden');
+}
+
+function onEditIssueDateChange(v) {
+  const form = document.getElementById('editForm');
+  if (form && form.elements['expireDate']) form.elements['expireDate'].value = calcExpireIso(v);
+}
+
+function closeEditModal() {
+  const m = document.getElementById('editModal');
+  if (m) m.classList.add('hidden');
+}
+
+function handleEditSubmit(e) {
+  e.preventDefault();
+  const form = e.target;
+  const sheetRow = parseInt(fv(form, 'sheetRow'), 10);
+  const sheetName = fv(form, 'sheetName');
+  const category = fv(form, 'category');
+  const original = allData.find(x => x.category === category && Number(x.sheetRow) === sheetRow && x.sheetName === sheetName);
+  if (!original) { closeEditModal(); showModal('ข้อผิดพลาด', 'ไม่พบข้อมูลต้นฉบับ กรุณารีเฟรชหน้าจอ', 'error'); return; }
+
+  const data = Object.assign({}, original, { isNewRecord: false });
+  Array.prototype.forEach.call(form.elements, function (el) {
+    if (!el.name || ['category', 'sheetRow', 'sheetName'].indexOf(el.name) !== -1) return;
+    data[el.name] = String(el.value || '').trim();
+  });
+  if (!data.appName || !data.shopName) { showModal('ข้อมูลไม่ครบ', 'กรุณากรอกชื่อผู้ยื่นคำขอและชื่อสถานประกอบการ', 'warning'); return; }
+  if (!data.expireDate && data.issueDate) data.expireDate = calcExpireIso(data.issueDate);
+
+  closeEditModal();
+  const backup = Object.assign({}, original);
+  Object.assign(original, data);
+  softRefresh();
+  showToast('กำลังบันทึก', 'กำลังอัปเดตข้อมูล...');
+
+  google.script.run
+    .withSuccessHandler(function (res) {
+      if (res && res.success) {
+        showToast('สำเร็จ', 'อัปเดตข้อมูลเรียบร้อยแล้ว');
+      } else {
+        Object.assign(original, backup);
+        showModal('บันทึกไม่สำเร็จ', (res && res.message) || 'ไม่สามารถบันทึกลง Google Sheet ได้', 'error');
+      }
+      reloadAndRestoreState();
+    })
+    .withFailureHandler(function (err) {
+      Object.assign(original, backup);
+      reloadAndRestoreState();
+      showModal('บันทึกไม่สำเร็จ', (err && err.message) || String(err), 'error');
+    })
+    .saveEstablishmentData(data);
+}
+
+function executeDeleteRecord(idx) {
+  const it = allData[idx];
+  if (!it) return;
+  showToast('กำลังลบ', 'กำลังลบข้อมูลออกจากระบบ...');
+  google.script.run
+    .withSuccessHandler(function (res) {
+      if (res && res.success) { showToast('สำเร็จ', 'ลบข้อมูลเรียบร้อยแล้ว'); reloadAndRestoreState(); }
+      else showModal('ข้อผิดพลาด', (res && res.message) || 'ไม่สามารถลบข้อมูลได้', 'error');
+    })
+    .withFailureHandler(failHandler())
+    .deleteEstablishmentData({ category: it.category, sheetRow: it.sheetRow, sheetName: it.sheetName, permanentId: it.permanentId });
+}
+
+/* ===================== ฟอร์มบันทึกข้อมูลใหม่ ===================== */
+function renderFormView(category) {
+  const label = CATEGORY_LABEL[category] || 'ฟอร์มบันทึกข้อมูล';
+  const isCert = category === 'cert-food';
+  const isMarket = category === 'lic-market';
+  const isPublic = category === 'lic-public';
+  const isTrash = category === 'lic-trash';
+  const isHealth = category === 'lic-health';
+
+  let typeOptions = '';
+  if (isCert) {
+    typeOptions = `<option value="สถานที่จำหน่ายอาหาร (พื้นที่ไม่เกิน 200 ตร.ม.)">สถานที่จำหน่ายอาหาร (พื้นที่ไม่เกิน 200 ตร.ม.)</option>
+      <option value="สถานที่สะสมอาหาร (พื้นที่ไม่เกิน 200 ตร.ม.)">สถานที่สะสมอาหาร (พื้นที่ไม่เกิน 200 ตร.ม.)</option>`;
+  } else if (category === 'lic-food') {
+    typeOptions = `<option value="สถานที่จำหน่ายอาหาร (พื้นที่เกิน 200 ตารางเมตรขึ้นไป)">สถานที่จำหน่ายอาหาร (พื้นที่เกิน 200 ตารางเมตรขึ้นไป)</option>
+      <option value="สถานที่สะสมอาหาร (พื้นที่เกิน 200 ตารางเมตรขึ้นไป)">สถานที่สะสมอาหาร (พื้นที่เกิน 200 ตารางเมตรขึ้นไป)</option>`;
+  } else if (isMarket) {
+    typeOptions = `<option value="ตลาดประเภทที่ 1 (ตลาดที่มีโครงสร้างอาคาร)">ตลาดประเภทที่ 1 (ตลาดที่มีโครงสร้างอาคาร)</option>
+      <option value="ตลาดประเภทที่ 2 (ตลาดที่ไม่มีโครงสร้างอาคาร)">ตลาดประเภทที่ 2 (ตลาดที่ไม่มีโครงสร้างอาคาร)</option>`;
+  } else {
+    typeOptions = `<option value="${esc(label)}">${esc(label)}</option>`;
+  }
+
+  let extraHTML = '';
+  if (isHealth) {
+    extraHTML = `
+      <div class="p-6 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-2xl border border-emerald-200/80 dark:border-emerald-900/50 space-y-4">
+        <span class="text-xs font-bold text-emerald-900 dark:text-emerald-300 block uppercase tracking-wider">⚠️ ข้อมูลกิจการที่เป็นอันตรายต่อสุขภาพ (5 ระดับ)</span>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><label class="lbl">กลุ่ม (ระดับ 1) *</label><select id="hGroup" required class="inp" onchange="onHGroupChange()"></select></div>
+          <div><label class="lbl">ประเภท (ระดับ 2)</label><select id="hType" class="inp" onchange="onHTypeChange()"></select></div>
+          <div><label class="lbl">ประเภทย่อย (ระดับ 3)</label><select id="hSub" class="inp" onchange="onHSubChange()"></select></div>
+          <div><label class="lbl">ประเภทย่อยลงมา (ระดับ 4)</label><select id="hChild" class="inp" onchange="onHChildChange()"></select></div>
+          <div class="md:col-span-2"><label class="lbl">รายละเอียด (ระดับ 5)</label><select id="hDetail" class="inp"></select></div>
+        </div>
+      </div>`;
+  } else if (isPublic) {
+    extraHTML = `
+      <div class="p-6 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-2xl border border-indigo-200/80 dark:border-indigo-900/50 space-y-4">
+        <span class="text-xs font-bold text-indigo-900 dark:text-indigo-300 block uppercase tracking-wider">🛍️ ข้อมูลการขออนุญาตจำหน่ายสินค้าในที่หรือทางสาธารณะ</span>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div><label class="lbl">ชนิดสินค้า / อาหารที่จำหน่าย *</label><input name="pubGoods" required class="inp" placeholder="เช่น เสื้อผ้า, ผลไม้"></div>
+          <div><label class="lbl">จำนวนผู้ช่วยขาย (คน)</label><input type="number" name="pubAssistants" class="inp" value="0"></div>
+          <div><label class="lbl">ขนาดพื้นที่ (ตร.ม.) *</label><input type="number" step="0.01" name="shopAreaSize" required class="inp" value="0"></div>
+          <div><label class="lbl">ค่าธรรมเนียม (บาท)</label><input type="number" step="0.01" name="fee" class="inp" value="0"></div>
+          <div class="md:col-span-2"><label class="lbl">ลักษณะการจำหน่ายสินค้า *</label>
+            <select name="pubSubtype" class="inp">
+              <option value="จำหน่ายสินค้าประเภทสิ่งของอื่นที่มิใช่อาหาร (จัดวางปกติ)">จำหน่ายสินค้าประเภทสิ่งของอื่นที่มิใช่อาหารโดยลักษณะวิธีการจัดวางสินค้าในที่หนึ่งที่ใดเป็นปกติ</option>
+              <option value="จำหน่ายสินค้าประเภทอาหาร (จัดวางปกติ)">จำหน่ายสินค้าประเภทอาหารโดยลักษณะวิธีการจัดวางสินค้าในที่หนึ่งที่ใดเป็นปกติ</option>
+              <option value="จำหน่ายสินค้าประเภทสัตว์เลี้ยงที่มีชีวิต (จัดวางปกติ)">จำหน่ายสินค้าประเภทสัตว์เลี้ยงที่มีชีวิตโดยลักษณะวิธีการจัดวางสินค้าในที่หนึ่งที่ใดเป็นปกติ</option>
+              <option value="การจำหน่ายสินค้าโดยลักษณะเร่ขาย">การจำหน่ายสินค้าโดยลักษณะวิธีการเร่ขายสินค้า</option>
+              <option value="การจำหน่ายสินค้าประเภทอาหารโดยลักษณะเร่ขาย">การจำหน่ายสินค้าโดยลักษณะวิธีการเร่ขายสินค้า</option>
+            </select>
+          </div>
+          <div class="md:col-span-3"><label class="lbl">เลือกเขตผ่อนผัน / ที่ตั้งการจำหน่ายสินค้า *</label>
+            <select name="shopArea" required class="inp">
+              <option value="">-- กรุณาเลือกเขตผ่อนผันการจำหน่ายสินค้า --</option>
+              ${PUBLIC_ZONES.map(z => `<option value="${esc(z)}">${esc(z)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+      </div>`;
+  } else if (isTrash) {
+    extraHTML = `
+      <div class="p-6 bg-purple-50/50 dark:bg-purple-950/20 rounded-2xl border border-purple-200/80 dark:border-purple-900/50 space-y-4">
+        <span class="text-xs font-bold text-purple-900 dark:text-purple-300 block uppercase tracking-wider">♻️ ข้อมูลการเก็บ ขน หรือกำจัดสิ่งปฏิกูลหรือมูลฝอย</span>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><label class="lbl">ประเภทขยะ / สิ่งปฏิกูล *</label>
+            <select id="trashType" class="inp">
+              <option value="มูลฝอยทั่วไป">มูลฝอยทั่วไป</option>
+              <option value="มูลฝอยติดเชื้อ">มูลฝอยติดเชื้อ</option>
+              <option value="สิ่งปฏิกูล">สิ่งปฏิกูล</option>
+            </select>
+          </div>
+          <div><label class="lbl">ประเภทใบอนุญาตประกอบกิจการ *</label>
+            <select id="trashSubtype" class="inp">
+              <option value="ใบอนุญาตการรับทำการเก็บและขนมูลฝอย">ใบอนุญาตการรับทำการเก็บและขนมูลฝอย</option>
+              <option value="ใบอนุญาตการกำจัดมูลฝอย">ใบอนุญาตการกำจัดมูลฝอย</option>
+              <option value="ใบอนุญาตการหาประโยชน์จากการจัดการมูลฝอย">ใบอนุญาตการหาประโยชน์จากการจัดการมูลฝอย</option>
+            </select>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  const shopNameLabel = isMarket ? 'ชื่อตลาด *' : (isPublic ? 'ชื่อแผงค้า *' : 'ชื่อสถานประกอบการ *');
+  const shopNamePlaceholder = isMarket ? 'ระบุชื่อตลาด' : (isPublic ? 'ระบุชื่อแผง' : 'ชื่อร้านอาหาร / กิจการ');
+
+  document.getElementById('mainContentContainer').innerHTML = `
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 shadow-xl space-y-6 w-full text-slate-800 dark:text-slate-100">
+      <div class="border-b border-slate-200 dark:border-slate-800 pb-4">
+        <h3 class="font-bold text-lg">📝 บันทึกข้อมูล: ${esc(label)}</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">กรอกรายละเอียดข้อมูลผู้ยื่นคำขอและสถานประกอบการตามแบบฟอร์มมาตรฐาน</p>
+      </div>
+
+      <form id="recordForm" data-category="${category}" onsubmit="handleFormSubmit(event, '${category}')" class="space-y-6 text-sm">
+        <div class="space-y-4">
+          <h4 class="font-bold text-xs uppercase tracking-wider text-emerald-700 dark:text-emerald-400 border-l-4 border-emerald-500 pl-2">1. ข้อมูลผู้ยื่นคำขอรับใบอนุญาต / หนังสือรับรองการแจ้ง</h4>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="lbl">ประเภทผู้ยื่นคำขอ *</label>
+              <select name="applicantType" id="applicantTypeSelect" onchange="onApplicantTypeChange()" class="inp">
+                <option value="บุคคลธรรมดา">บุคคลธรรมดา</option>
+                <option value="นิติบุคคล">นิติบุคคล</option>
+              </select>
+            </div>
+            <div id="boxPersonName">
+              <label class="lbl">ชื่อ - สกุล ผู้ยื่นคำขอ *</label>
+              <input name="appName" id="inputPersonName" required oninput="checkDuplicateApplicant(this.value)" class="inp" placeholder="นายสมชาย ใจดี">
+            </div>
+            <div id="boxCorpName" class="hidden">
+              <label class="lbl">ชื่อนิติบุคคล *</label>
+              <input name="corpName" id="inputCorpName" oninput="checkDuplicateApplicant(this.value)" class="inp" placeholder="บริษัท ... จำกัด">
+            </div>
+            <div id="boxCorpBy" class="hidden">
+              <label class="lbl">โดย (ผู้รับมอบอำนาจ / กรรมการ) *</label>
+              <input name="corpBy" id="inputCorpBy" class="inp" placeholder="นายสมชาย ใจดี">
+            </div>
+          </div>
+          <div id="duplicateAlertBox" class="hidden p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 text-amber-800 dark:text-amber-300 text-xs flex items-center justify-between">
+            <span id="duplicateAlertText">⚠️ คำเตือน: พบชื่อผู้ยื่นคำขอนี้ในระบบแล้ว</span>
+            <span class="font-bold underline cursor-pointer" onclick="switchMenu('management')">ไปที่หน้าค้นหา</span>
+          </div>
+
+          <div class="p-5 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+            <span class="text-xs font-bold text-slate-600 dark:text-slate-300 block">📍 ที่อยู่ผู้ยื่นคำขอ</span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div><label class="lbl">เลขที่</label><input name="appNo" class="inp"></div>
+              <div><label class="lbl">ซอย</label><input name="appSoi" class="inp"></div>
+              <div><label class="lbl">ถนน</label><input name="appRoad" class="inp"></div>
+              <div><label class="lbl">หมู่ที่</label><input name="appMoo" class="inp"></div>
+              <div><label class="lbl">ตำบล</label><input name="appSubdistrict" class="inp" value="เชิงดอย"></div>
+              <div><label class="lbl">อำเภอ</label><input name="appDistrict" class="inp bg-slate-100 dark:bg-slate-800" value="ดอยสะเก็ด" readonly></div>
+              <div><label class="lbl">จังหวัด</label><input name="appProvince" class="inp bg-slate-100 dark:bg-slate-800" value="เชียงใหม่" readonly></div>
+              <div><label class="lbl">หมายเลขโทรศัพท์ *</label><input name="appPhone" required class="inp" placeholder="0XXXXXXXXX"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-4 pt-2">
+          <h4 class="font-bold text-xs uppercase tracking-wider text-emerald-700 dark:text-emerald-400 border-l-4 border-emerald-500 pl-2">2. ข้อมูลสถานประกอบกิจการ</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label class="lbl">${shopNameLabel}</label><input name="shopName" required class="inp" placeholder="${shopNamePlaceholder}"></div>
+            <div><label class="lbl">ประเภทกิจการ / ใบอนุญาต *</label><select name="licenseType" class="inp">${typeOptions}</select></div>
+          </div>
+
+          ${isMarket ? `
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label class="lbl">จำนวนแผงค้า (แผง) *</label><input type="number" name="marketStalls" required class="inp" value="0"></div>
+            <div><label class="lbl">ค่าธรรมเนียม (บาท)</label><input type="number" step="0.01" name="fee" class="inp" value="0"></div>
+          </div>` : (!isPublic ? `
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label class="lbl">พื้นที่ (ตร.ม.) *</label><input type="number" step="0.01" name="shopArea" required class="inp" value="0"></div>
+            <div><label class="lbl">ค่าธรรมเนียม (บาท)</label><input type="number" step="0.01" name="fee" class="inp" value="0"></div>
+          </div>` : '')}
+
+          ${!isPublic ? `
+          <div class="p-5 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+            <span class="text-xs font-bold text-slate-600 dark:text-slate-300 block">📍 ที่ตั้งสถานประกอบการ</span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div><label class="lbl">ตั้งอยู่เลขที่</label><input name="shopNo" class="inp"></div>
+              <div><label class="lbl">ซอย</label><input name="shopSoi" class="inp"></div>
+              <div><label class="lbl">ถนน</label><input name="shopRoad" class="inp"></div>
+              <div><label class="lbl">หมู่ที่</label><input name="shopMoo" class="inp"></div>
+              <div><label class="lbl">ตำบล</label><input name="shopSubdistrict" class="inp" value="เชิงดอย"></div>
+              <div><label class="lbl">อำเภอ</label><input name="shopDistrict" class="inp bg-slate-100 dark:bg-slate-800" value="ดอยสะเก็ด" readonly></div>
+              <div><label class="lbl">จังหวัด</label><input name="shopProvince" class="inp bg-slate-100 dark:bg-slate-800" value="เชียงใหม่" readonly></div>
+              <div><label class="lbl">โทรศัพท์สถานประกอบการ</label><input name="shopPhone" class="inp"></div>
+            </div>
+          </div>` : ''}
+        </div>
+
+        ${extraHTML}
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div><label class="lbl">เลขที่ใบเสร็จ</label><input name="receiptNo" class="inp"></div>
+          <div><label class="lbl">วันที่อนุญาต / วันที่ชำระเงิน *</label><input type="date" name="issueDate" required class="inp" value="${todayIso()}"></div>
+          <div><label class="lbl">สถานะคำขอ</label>
+            <select name="appType" class="inp">
+              <option value="รายใหม่">รายใหม่</option>
+              <option value="รายเดิม">รายเดิม</option>
+              <option value="ต่ออายุ">ต่ออายุ</option>
+            </select>
+          </div>
+        </div>
+
+        <div><label class="lbl">หมายเหตุ</label><textarea name="remark" rows="3" class="inp" placeholder="ระบุหมายเหตุเพิ่มเติม (ถ้ามี)"></textarea></div>
+
+        <div class="pt-4 flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800">
+          <button type="submit" id="recordSubmitBtn" class="px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-2xl font-bold shadow-lg shadow-emerald-600/25 transition">💾 บันทึกข้อมูลเข้าสู่ระบบ</button>
+        </div>
+      </form>
+    </div>`;
+
+  if (isHealth) initHealthDropdowns();
+}
+
+function checkDuplicateApplicant(val) {
+  const box = document.getElementById('duplicateAlertBox');
+  const txt = document.getElementById('duplicateAlertText');
+  if (!box || !txt) return;
+  const q = String(val || '').trim().toLowerCase();
+  if (q.length < 3) { box.classList.add('hidden'); return; }
+  const found = latestRecords(allData).find(x => String(x.appName || '').toLowerCase().includes(q));
+  if (found) {
+    txt.textContent = `⚠️ คำเตือน: พบชื่อ "${found.appName}" มีอยู่แล้วในระบบ (รหัส: ${found.permanentId}, ร้าน: ${found.shopName})`;
+    box.classList.remove('hidden');
+  } else {
+    box.classList.add('hidden');
+  }
+}
+
+function onApplicantTypeChange() {
+  const isCorp = document.getElementById('applicantTypeSelect').value === 'นิติบุคคล';
+  document.getElementById('boxPersonName').classList.toggle('hidden', isCorp);
+  document.getElementById('boxCorpName').classList.toggle('hidden', !isCorp);
+  document.getElementById('boxCorpBy').classList.toggle('hidden', !isCorp);
+  document.getElementById('inputPersonName').required = !isCorp;
+  document.getElementById('inputCorpName').required = isCorp;
+  document.getElementById('inputCorpBy').required = isCorp;
+}
+
+function initHealthDropdowns() {
+  const gSel = document.getElementById('hGroup');
+  if (!gSel) return;
+  gSel.innerHTML = '<option value="">-- เลือกกลุ่มกิจการ --</option>' + getDangerousGroups().map(g => `<option value="${esc(g.group)}">${esc(g.group)}</option>`).join('');
+  onHGroupChange();
+}
+
+function healthPath() {
+  const gName = document.getElementById('hGroup').value;
+  const tName = document.getElementById('hType').value;
+  const subName = document.getElementById('hSub').value;
+  const chName = document.getElementById('hChild').value;
+  const group = getDangerousGroups().find(g => g.group === gName) || { types: [] };
+  const typeObj = (group.types || []).find(t => t.type === tName) || { subItems: [] };
+  const subObj = (typeObj.subItems || []).find(s => (typeof s === 'string' ? s : s.name) === subName) || { children: [] };
+  const chObj = (subObj.children || []).find(c => (typeof c === 'string' ? c : c.name) === chName) || { details: [] };
+  return { group, typeObj, subObj, chObj };
+}
+
+function fillSelect(id, placeholder, items) {
+  const el = document.getElementById(id);
+  el.innerHTML = `<option value="">${placeholder}</option>` + items.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+}
+
+function onHGroupChange() {
+  const p = healthPath();
+  fillSelect('hType', '-- เลือกประเภทกิจการ --', (p.group.types || []).map(t => t.type));
+  onHTypeChange();
+}
+
+function onHTypeChange() {
+  const p = healthPath();
+  fillSelect('hSub', '-- เลือกประเภทย่อย --', (p.typeObj.subItems || []).map(s => typeof s === 'string' ? s : s.name));
+  onHSubChange();
+}
+
+function onHSubChange() {
+  const p = healthPath();
+  fillSelect('hChild', '-- เลือกประเภทย่อยลงมา --', (p.subObj.children || []).map(c => typeof c === 'string' ? c : c.name));
+  onHChildChange();
+}
+
+function onHChildChange() {
+  const p = healthPath();
+  fillSelect('hDetail', '-- เลือกรายละเอียด --', p.chObj.details || []);
+}
+
+function handleFormSubmit(e, category) {
+  e.preventDefault();
+  const form = e.target;
+  const appTypeVal = fv(form, 'applicantType');
+
+  let finalAppName = fv(form, 'appName');
+  if (appTypeVal === 'นิติบุคคล') {
+    const corp = fv(form, 'corpName');
+    const by = fv(form, 'corpBy');
+    finalAppName = corp + (by ? ' โดย ' + by : '');
+  }
+  if (!finalAppName) { showModal('ข้อมูลไม่ครบ', 'กรุณากรอกชื่อผู้ยื่นคำขอ', 'warning'); return; }
+
+  const data = {
+    category: category,
+    applicantType: appTypeVal,
+    appName: finalAppName,
+    appNo: fv(form, 'appNo'), appSoi: fv(form, 'appSoi'), appRoad: fv(form, 'appRoad'), appMoo: fv(form, 'appMoo'),
+    appSubdistrict: fv(form, 'appSubdistrict'), appDistrict: fv(form, 'appDistrict') || 'ดอยสะเก็ด',
+    appProvince: fv(form, 'appProvince') || 'เชียงใหม่', appPhone: fv(form, 'appPhone'),
+    shopName: fv(form, 'shopName'),
+    licenseType: fv(form, 'licenseType'),
+    shopArea: parseFloat(fv(form, 'shopArea')) || 0,
+    fee: parseFloat(fv(form, 'fee')) || 0,
+    shopNo: fv(form, 'shopNo'), shopSoi: fv(form, 'shopSoi'), shopRoad: fv(form, 'shopRoad'), shopMoo: fv(form, 'shopMoo'),
+    shopSubdistrict: fv(form, 'shopSubdistrict'), shopDistrict: fv(form, 'shopDistrict') || 'ดอยสะเก็ด',
+    shopProvince: fv(form, 'shopProvince') || 'เชียงใหม่', shopPhone: fv(form, 'shopPhone'),
+    receiptNo: fv(form, 'receiptNo'),
+    issueDate: fv(form, 'issueDate'),
+    expireDate: '',
+    appType: fv(form, 'appType') || 'รายใหม่',
+    remark: fv(form, 'remark'),
+    isNewRecord: true
+  };
+
+  if (category === 'lic-market') {
+    data.marketStalls = parseInt(fv(form, 'marketStalls'), 10) || 0;
+    delete data.shopArea;
+  } else if (category === 'lic-health') {
+    data.healthGroup = document.getElementById('hGroup').value;
+    data.healthType = document.getElementById('hType').value;
+    data.healthSub = document.getElementById('hSub').value;
+    data.healthChild = document.getElementById('hChild').value;
+    data.healthDetail = document.getElementById('hDetail').value;
+    data.licenseType = 'กิจการที่เป็นอันตรายต่อสุขภาพ';
+  } else if (category === 'lic-public') {
+    data.pubGoods = fv(form, 'pubGoods');
+    data.pubAssistants = parseInt(fv(form, 'pubAssistants'), 10) || 0;
+    data.licenseType = fv(form, 'pubSubtype');
+    data.shopArea = fv(form, 'shopArea');
+    data['Area / Length'] = parseFloat(fv(form, 'shopAreaSize')) || 0;
+    if (!data.shopArea) { showModal('ข้อมูลไม่ครบ', 'กรุณาเลือกเขตผ่อนผัน / ที่ตั้งการจำหน่ายสินค้า', 'warning'); return; }
+  } else if (category === 'lic-trash') {
+    data.trashType = document.getElementById('trashType').value;
+    data.trashSubtype = document.getElementById('trashSubtype').value;
+    data.licenseType = data.trashSubtype + ' (' + data.trashType + ')';
+  }
+
+  const btn = document.getElementById('recordSubmitBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
+  const resetBtn = () => { if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึกข้อมูลเข้าสู่ระบบ'; } };
+
+  google.script.run
+    .withSuccessHandler(function (res) {
+      if (res && res.success) {
+        showToast('สำเร็จ', 'บันทึกข้อมูลเรียบร้อยแล้ว รหัส ' + res.permanentId);
+        mgmtState = { cat: category, kw: res.permanentId, openId: '' };
+        currentMenu = 'management';
+        switchMenu('management');
+        loadData();
+      } else {
+        resetBtn();
+        showModal('ข้อผิดพลาด', (res && res.message) || 'บันทึกไม่สำเร็จ', 'error');
+      }
+    })
+    .withFailureHandler(function (err) { resetBtn(); failHandler()(err); })
+    .saveEstablishmentData(data);
+}
+
+/* ===================== ต่ออายุ + กรองช่วงวันหมดอายุ + ส่งออก Excel ===================== */
+function getRenewList() {
+  let list = latestRecords(allData).filter(it => !isCancelled(it));
+  const hasRange = renewState.start || renewState.end;
+  if (hasRange) {
+    list = list.filter(it => {
+      const exp = getExpDate(it);
+      if (!exp) return false;
+      const s = toIso(exp);
+      if (renewState.start && s < renewState.start) return false;
+      if (renewState.end && s > renewState.end) return false;
+      return true;
+    });
+  } else {
+    list = list.filter(it => { const s = checkExpiration(it).status; return s === 'expired' || s === 'soon'; });
+  }
+  if (renewState.cat !== 'all') list = list.filter(it => it.category === renewState.cat);
+  if (renewState.kw) list = list.filter(it => matchesKeyword(it, renewState.kw));
+  return list.sort((a, b) => (getExpDate(a) || 0) - (getExpDate(b) || 0));
+}
+
+function renderRenewListView() {
+  const qb = 'px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-800 font-bold transition';
+  document.getElementById('mainContentContainer').innerHTML = `
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 md:p-8 space-y-6 w-full text-slate-800 dark:text-slate-100">
+      <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
+        <div>
+          <h3 class="font-bold text-base text-slate-800 dark:text-slate-100">💳 รายการใกล้หมดอายุ / ต้องต่ออายุใบอนุญาต</h3>
+          <p id="renewModeText" class="text-xs text-slate-500 dark:text-slate-400 mt-1"></p>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+          <select id="renewCatFilter" onchange="onRenewFilterChange()" class="inp sm:w-64 font-semibold">${categoryOptions('📂 ทุกประเภทกิจการ', renewState.cat)}</select>
+          <input id="renewSearchInput" oninput="onRenewFilterChange()" value="${esc(renewState.kw)}" placeholder="ค้นหาชื่อ, ร้าน, เลขรหัส..." class="inp sm:w-56">
+        </div>
+      </div>
+
+      <div class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-wrap items-end gap-4 text-xs">
+        <div><label class="lbl">📅 วันหมดอายุ ตั้งแต่วันที่</label><input type="date" id="renewStartDate" onchange="onRenewFilterChange()" value="${esc(renewState.start)}" class="inp"></div>
+        <div><label class="lbl">ถึงวันที่</label><input type="date" id="renewEndDate" onchange="onRenewFilterChange()" value="${esc(renewState.end)}" class="inp"></div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" onclick="setRenewQuickRange('month')" class="${qb}">เดือนนี้</button>
+          <button type="button" onclick="setRenewQuickRange('next30')" class="${qb}">30 วันข้างหน้า</button>
+          <button type="button" onclick="setRenewQuickRange('next90')" class="${qb}">3 เดือนข้างหน้า</button>
+          <button type="button" onclick="setRenewQuickRange('year')" class="${qb}">ปีนี้</button>
+          <button type="button" onclick="setRenewQuickRange('clear')" class="${qb} text-rose-600 dark:text-rose-400">ล้างช่วงวันที่</button>
+        </div>
+        <button type="button" onclick="exportRenewListExcel()" class="ml-auto px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition shadow-md whitespace-nowrap">📥 ส่งออก Excel (<span id="renewCount">0</span> รายการ)</button>
+      </div>
+
+      <div class="overflow-x-auto rounded-2xl border border-slate-200/60 dark:border-slate-800">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-50 dark:bg-slate-800 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <tr>
+              <th class="py-4 px-4">รหัส</th><th class="py-4 px-4">สถานประกอบการ</th><th class="py-4 px-4">ประเภทใบอนุญาต</th>
+              <th class="py-4 px-4">ผู้ขอ</th><th class="py-4 px-4">วันหมดอายุ</th><th class="py-4 px-4">คงเหลือ</th>
+              <th class="py-4 px-4 text-center">สถานะ</th><th class="py-4 px-4 text-center">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="renewTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
+        </table>
+      </div>
+    </div>`;
+  updateRenewTable();
+}
+
+function onRenewFilterChange() {
+  const start = document.getElementById('renewStartDate').value;
+  const end = document.getElementById('renewEndDate').value;
+  if (start && end && start > end) {
+    showModal('ช่วงวันที่ไม่ถูกต้อง', 'วันที่เริ่มต้นต้องไม่มากกว่าวันที่สิ้นสุด', 'warning');
+    document.getElementById('renewStartDate').value = renewState.start;
+    document.getElementById('renewEndDate').value = renewState.end;
+    return;
+  }
+  renewState.cat = document.getElementById('renewCatFilter').value;
+  renewState.kw = document.getElementById('renewSearchInput').value.trim();
+  renewState.start = start;
+  renewState.end = end;
+  updateRenewTable();
+}
+
+function setRenewQuickRange(type) {
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  let s = null, e = null;
+  if (type === 'month') { s = new Date(t.getFullYear(), t.getMonth(), 1); e = new Date(t.getFullYear(), t.getMonth() + 1, 0); }
+  else if (type === 'next30') { s = t; e = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 30); }
+  else if (type === 'next90') { s = t; e = new Date(t.getFullYear(), t.getMonth() + 3, t.getDate()); }
+  else if (type === 'year') { s = new Date(t.getFullYear(), 0, 1); e = new Date(t.getFullYear(), 11, 31); }
+  renewState.start = s ? toIso(s) : '';
+  renewState.end = e ? toIso(e) : '';
+  document.getElementById('renewStartDate').value = renewState.start;
+  document.getElementById('renewEndDate').value = renewState.end;
+  updateRenewTable();
+}
+
+function renewRangeText() {
+  if (!renewState.start && !renewState.end) return 'แสดงรายการที่หมดอายุแล้วและจะหมดอายุภายใน 30 วัน (เลือกช่วงวันที่เพื่อดูล่วงหน้า)';
+  return `แสดงสถานประกอบการที่มีวันหมดอายุตั้งแต่ ${renewState.start ? formatThaiDate(renewState.start) : '(ไม่กำหนด)'} ถึง ${renewState.end ? formatThaiDate(renewState.end) : '(ไม่กำหนด)'}`;
+}
+
+function updateRenewTable() {
+  const tbody = document.getElementById('renewTableBody');
+  if (!tbody) return;
+  const list = getRenewList();
+  setText('renewCount', list.length);
+  setText('renewModeText', renewRangeText());
+
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center py-12 text-slate-400 dark:text-slate-500 font-medium">ไม่มีรายการตามเงื่อนไขที่เลือก</td></tr>'; return; }
+  tbody.innerHTML = list.map(it => {
+    const c = checkExpiration(it);
+    return `<tr class="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 transition">
+      <td class="py-3.5 px-4 font-bold text-emerald-600 dark:text-emerald-400">${esc(it.permanentId)}</td>
+      <td class="py-3.5 px-4 font-semibold">${esc(it.shopName)}</td>
+      <td class="py-3.5 px-4 text-xs text-slate-500 dark:text-slate-400">${esc(it.licenseType)}</td>
+      <td class="py-3.5 px-4">${esc(it.appName)}</td>
+      <td class="py-3.5 px-4 font-medium">${c.expStr}</td>
+      <td class="py-3.5 px-4 text-xs">${daysText(c)}</td>
+      <td class="py-3.5 px-4 text-center"><span class="px-3 py-1 rounded-xl text-xs font-bold ${c.cls}">${c.text}</span></td>
+      <td class="py-3.5 px-4 text-center"><button onclick="openRenewModal(${allData.indexOf(it)})" class="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition shadow-xs whitespace-nowrap">💳 ต่ออายุ</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function exportRenewListExcel() {
+  const list = getRenewList();
+  if (!list.length) { showModal('แจ้งเตือน', 'ไม่มีรายการตามช่วงเวลาหรือเงื่อนไขที่เลือกสำหรับส่งออกข้อมูล', 'warning'); return; }
+
+  const org = getOrgSettings();
+  const rows = [
+    ['รายชื่อสถานประกอบการที่หมดอายุ / ใกล้หมดอายุ'],
+    [org.orgSub],
+    [renewRangeText().replace('แสดง', '') + ' | ข้อมูล ณ วันที่ ' + formatThaiDate(todayIso())],
+    [],
+    ['ลำดับ', 'รหัสถาวร', 'หมวดหมู่', 'ชื่อสถานประกอบการ', 'ประเภทใบอนุญาต', 'ชื่อผู้ยื่นคำขอ', 'เบอร์โทรศัพท์', 'ที่อยู่', 'วันที่อนุญาตล่าสุด', 'วันหมดอายุ', 'คงเหลือ (วัน) ติดลบ = เลยกำหนด', 'สถานะ', 'ค่าธรรมเนียมล่าสุด (บาท)']
+  ];
+  list.forEach((it, i) => {
+    const c = checkExpiration(it);
+    rows.push([i + 1, it.permanentId, CATEGORY_LABEL[it.category] || it.category, it.shopName, it.licenseType, it.appName, it.appPhone || '-', addrOf(it), formatThaiDate(it.issueDate), c.expStr, c.days == null ? '' : c.days, c.text, parseFloat(it.fee) || 0]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{ wch: 6 }, { wch: 12 }, { wch: 40 }, { wch: 30 }, { wch: 40 }, { wch: 28 }, { wch: 14 }, { wch: 45 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'รายการหมดอายุ');
+  XLSX.writeFile(wb, `รายการหมดอายุ_${renewState.start || 'ไม่กำหนด'}_ถึง_${renewState.end || 'ไม่กำหนด'}.xlsx`);
+  showToast('สำเร็จ', `ส่งออก Excel ${list.length} รายการเรียบร้อยแล้ว`);
+}
+
+function openRenewModal(idx) {
+  const it = allData[idx];
+  const form = document.getElementById('renewForm');
+  if (!it || !form) return;
+  form.elements['renewIndex'].value = idx;
+  form.elements['receiptNo'].value = '';
+  form.elements['fee'].value = it.fee || 0;
+  form.elements['issueDate'].value = todayIso();
+  if (form.elements['adminPassword']) form.elements['adminPassword'].value = '';
+  setText('renewModalTitle', 'ต่ออายุใบอนุญาต: ' + it.shopName + ' (' + it.permanentId + ')');
+  document.getElementById('renewModal').classList.remove('hidden');
+}
+
+function closeRenewModal() {
+  const rm = document.getElementById('renewModal');
+  if (rm) rm.classList.add('hidden');
+}
+
+function handleRenewSubmit(e) {
+  e.preventDefault();
+  const form = e.target;
+  if (form.elements['adminPassword'] && fv(form, 'adminPassword') !== getAdminPassword()) {
+    showModal('รหัสผ่านไม่ถูกต้อง', 'กรุณากรอกรหัสผ่านยืนยันเจ้าหน้าที่ให้ถูกต้อง', 'error');
+    return;
+  }
+  const it = allData[parseInt(form.elements['renewIndex'].value, 10)];
+  if (!it) { closeRenewModal(); return; }
+
+  const data = Object.assign({}, it, {
+    receiptNo: fv(form, 'receiptNo'),
+    fee: parseFloat(fv(form, 'fee')) || 0,
+    issueDate: fv(form, 'issueDate'),
+    oldExpireDate: it.expireDate,
+    expireDate: '',
+    appType: 'ต่ออายุ',
+    sheetRow: '',
+    isNewRecord: true
+  });
+
+  closeRenewModal();
+  showToast('กำลังบันทึก', 'กำลังบันทึกการชำระเงินและต่ออายุ...');
+  google.script.run
+    .withSuccessHandler(function (res) {
+      if (res && res.success) {
+        showToast('สำเร็จ', 'ต่ออายุเรียบร้อย หมดอายุใหม่ ' + formatThaiDate(res.expireDate));
+        reloadAndRestoreState();
+      } else {
+        showModal('ข้อผิดพลาด', (res && res.message) || 'ต่ออายุไม่สำเร็จ', 'error');
+      }
+    })
+    .withFailureHandler(failHandler())
+    .saveEstablishmentData(data);
+}
+
+/* ===================== เปลี่ยนแปลง / ยกเลิกกิจการ ===================== */
+function renderEditCancelListView() {
+  document.getElementById('mainContentContainer').innerHTML = `
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 md:p-8 space-y-6 w-full text-slate-800 dark:text-slate-100">
+      <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
+        <div>
+          <h3 class="font-bold text-base text-slate-800 dark:text-slate-100">📝 รายการเปลี่ยนแปลง / ยกเลิกกิจการ</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">กรองตามประเภทใบอนุญาตหรือค้นหาจากชื่อ-สกุล ชื่อร้าน หรือเลขรหัสถาวร</p>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+          <select id="editCatFilter" onchange="onEditFilterChange()" class="inp sm:w-72 font-semibold">${categoryOptions('📂 ทุกประเภทกิจการ', editState.cat)}</select>
+          <input id="editSearchInput" oninput="onEditFilterChange()" value="${esc(editState.kw)}" placeholder="ค้นหาชื่อ, ร้าน, เลขรหัส..." class="inp sm:w-64">
+        </div>
+      </div>
+      <div class="overflow-x-auto rounded-2xl border border-slate-200/60 dark:border-slate-800">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-50 dark:bg-slate-800 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <tr><th class="py-4 px-4">รหัส</th><th class="py-4 px-4">สถานประกอบการ</th><th class="py-4 px-4">ประเภทใบอนุญาต</th><th class="py-4 px-4">ผู้ขอ</th><th class="py-4 px-4">สถานะคำขอ</th><th class="py-4 px-4 text-center">จัดการ</th></tr>
+          </thead>
+          <tbody id="editTableBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
+        </table>
+      </div>
+    </div>`;
+  updateEditCancelTable();
+}
+
+function onEditFilterChange() {
+  editState.cat = document.getElementById('editCatFilter').value;
+  editState.kw = document.getElementById('editSearchInput').value.trim();
+  updateEditCancelTable();
+}
+
+function updateEditCancelTable() {
+  const tbody = document.getElementById('editTableBody');
+  if (!tbody) return;
+  let list = latestRecords(allData);
+  if (editState.cat !== 'all') list = list.filter(it => it.category === editState.cat);
+  if (editState.kw) list = list.filter(it => matchesKeyword(it, editState.kw));
+  list.sort((a, b) => String(b.permanentId).localeCompare(String(a.permanentId)));
+
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center py-12 text-slate-400 dark:text-slate-500 font-medium">ไม่พบข้อมูลตามเงื่อนไขที่ค้นหา</td></tr>'; return; }
+  tbody.innerHTML = list.map(it => {
+    const idx = allData.indexOf(it);
+    const cancelBtn = isCancelled(it)
+      ? '<span class="px-3 py-1.5 rounded-xl text-xs font-bold ' + CLS_CANCEL + '">ยกเลิกแล้ว</span>'
+      : `<button onclick="requestCancelEstablishment(${idx})" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-xs">🚫 ยกเลิกกิจการ</button>`;
+    return `<tr class="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 transition">
+      <td class="py-3.5 px-4 font-bold text-emerald-600 dark:text-emerald-400">${esc(it.permanentId)}</td>
+      <td class="py-3.5 px-4 font-semibold">${esc(it.shopName)}</td>
+      <td class="py-3.5 px-4 text-xs text-slate-500 dark:text-slate-400">${esc(it.licenseType)}</td>
+      <td class="py-3.5 px-4">${esc(it.appName)}</td>
+      <td class="py-3.5 px-4 font-medium">${esc(it.appType)}</td>
+      <td class="py-3.5 px-4 text-center space-x-2 whitespace-nowrap">
+        <button onclick="openEditModal(${idx})" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-xs">✏️ เปลี่ยนแปลง</button>
+        ${cancelBtn}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function executeCancelEstablishment(idx) {
+  const it = allData[idx];
+  if (!it) return;
+  const data = Object.assign({}, it, {
+    appType: 'ยกเลิกกิจการ',
+    issueDate: todayIso(),
+    fee: 0,
+    receiptNo: '',
+    remark: 'ยกเลิกกิจการเมื่อ ' + formatThaiDate(todayIso()) + (it.remark ? ' | ' + it.remark : ''),
+    sheetRow: '',
+    isNewRecord: true
+  });
+  google.script.run
+    .withSuccessHandler(function (res) {
+      if (res && res.success) { showToast('สำเร็จ', 'บันทึกการยกเลิกกิจการเรียบร้อยแล้ว'); reloadAndRestoreState(); }
+      else showModal('ข้อผิดพลาด', (res && res.message) || 'ยกเลิกกิจการไม่สำเร็จ', 'error');
+    })
+    .withFailureHandler(failHandler())
+    .saveEstablishmentData(data);
+}
+
+/* ===================== รายงาน ===================== */
+function renderReportsView() {
+  const currentYear = new Date().getFullYear() + 543;
+  let yearOpts = '<option value="all">ทุกปี (พ.ศ.)</option>';
+  for (let y = currentYear; y >= currentYear - 5; y--) yearOpts += `<option value="${y}">${y}</option>`;
+  let monthOpts = '<option value="all">ทุกเดือน</option>';
+  TH_MONTHS.forEach((m, i) => { monthOpts += `<option value="${i + 1}">${m}</option>`; });
+  const org = getOrgSettings();
+
+  document.getElementById('mainContentContainer').innerHTML = `
+    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 md:p-8 space-y-6 w-full text-slate-800 dark:text-slate-100">
+      <div class="border-b border-slate-200 dark:border-slate-800 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h3 class="font-bold text-lg">📈 ระบบรายงานและสถิติสารสนเทศสาธารณสุข</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">${esc(org.orgSub)}</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="window.print()" class="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold transition">🖨️ พิมพ์รายงาน</button>
+          <button onclick="exportSelectedReportExcel()" class="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl text-xs font-bold transition shadow-md whitespace-nowrap">📥 ส่งออกรายงานเป็น Excel</button>
+        </div>
+      </div>
+      <div class="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+        <div><label class="lbl">📋 เลือกประเภทรายงาน</label>
+          <select id="reportTypeSelect" onchange="updateReportData()" class="inp font-semibold text-emerald-700 dark:text-emerald-400">
+            <option value="official">1. รายงานสถิติทางการ (แจกแจงรายหมวดหมู่/รายเดิม/รายใหม่)</option>
+            <option value="fee">2. รายงานสรุปการจัดเก็บค่าธรรมเนียมรายเดือน</option>
+            <option value="detail">3. รายงานทะเบียนสถานประกอบการทั้งหมด (รายละเอียดเต็ม)</option>
+          </select>
+        </div>
+        <div><label class="lbl">📅 ปี พ.ศ.</label><select id="repYear" onchange="updateReportData()" class="inp font-semibold">${yearOpts}</select></div>
+        <div><label class="lbl">🗓️ เดือน</label><select id="repMonth" onchange="updateReportData()" class="inp font-semibold">${monthOpts}</select></div>
+      </div>
+      <div class="text-center space-y-1 py-2">
+        <h4 id="reportMainTitle" class="font-bold text-base text-slate-800 dark:text-slate-100">รายงานการออกใบอนุญาตและหนังสือรับรองการแจ้ง</h4>
+        <p id="reportSubTitle" class="text-xs text-emerald-700 dark:text-emerald-400 font-semibold">ข้อมูลสะสมทั้งหมดทุกช่วงเวลา</p>
+        <p class="text-[11px] text-slate-400 dark:text-slate-500">${esc(org.orgSub)} | ออกรายงาน ณ วันที่ ${formatThaiDate(todayIso())}</p>
+      </div>
+      <div id="reportContentContainer" class="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800"></div>
+    </div>`;
+  updateReportData();
+}
+
+function filterReportRows() {
+  const year = document.getElementById('repYear') ? document.getElementById('repYear').value : 'all';
+  const month = document.getElementById('repMonth') ? document.getElementById('repMonth').value : 'all';
+  return allData.filter(it => {
+    const d = parseIso(it.issueDate);
+    if (!d) return false;
+    if (year !== 'all' && String(d.getFullYear() + 543) !== String(year)) return false;
+    if (month !== 'all' && String(d.getMonth() + 1) !== String(month)) return false;
+    return true;
+  });
+}
+
+function updateReportData() {
+  const repType = document.getElementById('reportTypeSelect').value;
+  const year = document.getElementById('repYear').value;
+  const month = document.getElementById('repMonth').value;
+  let subText = 'ข้อมูลสะสมทั้งหมดทุกช่วงเวลา';
+  if (year !== 'all' && month !== 'all') subText = `ประจำปี พ.ศ. ${year} เดือน ${TH_MONTHS[month - 1]}`;
+  else if (year !== 'all') subText = `ประจำปี พ.ศ. ${year}`;
+  else if (month !== 'all') subText = `ประจำเดือน ${TH_MONTHS[month - 1]}`;
+  setText('reportSubTitle', subText);
+
+  const container = document.getElementById('reportContentContainer');
+  if (!container) return;
+  const filtered = filterReportRows();
+  if (repType === 'official') { setText('reportMainTitle', 'รายงานการออกใบอนุญาตและหนังสือรับรองการแจ้ง (สถิติทางการ)'); renderOfficialReportTable(filtered, container); }
+  else if (repType === 'fee') { setText('reportMainTitle', 'รายงานสรุปการจัดเก็บค่าธรรมเนียมใบอนุญาต'); renderFeeReportTable(filtered, container); }
+  else { setText('reportMainTitle', 'รายงานทะเบียนสถานประกอบการทั้งหมดในระบบ'); renderDetailReportTable(filtered, container); }
+}
+
+function renderOfficialReportTable(filtered, container) {
+  const byCat = cat => filtered.filter(x => x.category === cat);
+  const getSubStats = (list, m1, m2) => {
+    const active = latestRecords(list);
+    const oldList = active.filter(x => x.appType === 'รายเดิม' || x.appType === 'ต่ออายุ');
+    const newList = active.filter(x => x.appType === 'รายใหม่');
+    const cnt = (l, m) => l.filter(x => String(x.licenseType).includes(m)).length;
+    return { total: active.length, oldTotal: oldList.length, newTotal: newList.length, sub1Old: cnt(oldList, m1), sub2Old: cnt(oldList, m2), sub1New: cnt(newList, m1), sub2New: cnt(newList, m2) };
+  };
+  const s1 = getSubStats(byCat('cert-food'), 'จำหน่ายอาหาร', 'สะสมอาหาร');
+  const others = [
+    ['2', 'ใบอนุญาต การจำหน่ายอาหารหรือสะสมอาหาร (พื้นที่เกิน 200 ตารางเมตรขึ้นไป)', getSubStats(byCat('lic-food'), 'จำหน่ายอาหาร', 'สะสมอาหาร')],
+    ['3', 'ใบอนุญาตประกอบกิจการที่เป็นอันตรายต่อสุขภาพ', getSubStats(byCat('lic-health'), 'กิจการ', 'สุขภาพ')],
+    ['4', 'ใบอนุญาต การจัดตั้งตลาด', getSubStats(byCat('lic-market'), 'ประเภทที่ 1', 'ประเภทที่ 2')],
+    ['5', 'ใบอนุญาต การจำหน่ายสินค้าในที่หรือทางสาธารณะ', getSubStats(byCat('lic-public'), 'จัดวางปกติ', 'เร่ขาย')],
+    ['6', 'ใบอนุญาต การเก็บ ขน หรือกำจัดสิ่งปฏิกูลหรือมูลฝอย', getSubStats(byCat('lic-trash'), 'เก็บและขน', 'กำจัดมูลฝอย')]
+  ];
+  const head = (no, label, total) => `<tr class="bg-slate-50/80 dark:bg-slate-800/60 font-bold"><td class="py-3 px-4 text-center">${no}</td><td class="py-3 px-4">${label}</td><td class="py-3 px-4 text-right text-emerald-700 dark:text-emerald-400 font-extrabold">${total}</td></tr>`;
+  const sub = (label, val, indent) => `<tr><td class="py-2.5 px-4"></td><td class="py-2.5 px-4 ${indent} text-slate-600 dark:text-slate-400">${label}</td><td class="py-2.5 px-4 text-right font-semibold">${val}</td></tr>`;
+
+  let body = head('1', 'หนังสือรับรองการแจ้ง การจัดตั้งสถานที่จำหน่ายอาหารหรือสถานที่สะสมอาหาร (พื้นที่ไม่เกิน 200 ตร.ม.)', s1.total)
+    + sub('1.1 รายเดิม (ชำระค่าธรรมเนียมรายปี)', s1.oldTotal, 'pl-8')
+    + sub('1.1.1 สถานที่จำหน่ายอาหาร', s1.sub1Old, 'pl-12')
+    + sub('1.1.2 สถานที่สะสมอาหาร', s1.sub2Old, 'pl-12')
+    + sub('1.2 รายใหม่', s1.newTotal, 'pl-8')
+    + sub('1.2.1 สถานที่จำหน่ายอาหาร', s1.sub1New, 'pl-12')
+    + sub('1.2.2 สถานที่สะสมอาหาร', s1.sub2New, 'pl-12');
+  others.forEach(o => {
+    body += head(o[0], o[1], o[2].total) + sub(o[0] + '.1 รายเดิม (ต่ออายุ)', o[2].oldTotal, 'pl-8') + sub(o[0] + '.2 รายใหม่', o[2].newTotal, 'pl-8');
+  });
+
+  container.innerHTML = `<table class="w-full text-left text-xs">
+    <thead class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 uppercase tracking-wider font-bold">
+      <tr><th class="py-3.5 px-4 w-16 text-center">ลำดับ</th><th class="py-3.5 px-4">ประเภทใบอนุญาต / หนังสือรับรองการแจ้ง</th><th class="py-3.5 px-4 w-32 text-right">จำนวน (ราย)</th></tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">${body}</tbody></table>`;
+}
+
+function monthlyFeeSummary(filtered) {
+  const fees = new Array(12).fill(0), counts = new Array(12).fill(0);
+  filtered.forEach(it => { const d = parseIso(it.issueDate); if (d) { fees[d.getMonth()] += parseFloat(it.fee) || 0; counts[d.getMonth()] += 1; } });
+  return { fees, counts };
+}
+
+function renderFeeReportTable(filtered, container) {
+  const s = monthlyFeeSummary(filtered);
+  let rows = '', totalFee = 0, totalCnt = 0;
+  TH_MONTHS.forEach((mName, i) => {
+    totalFee += s.fees[i]; totalCnt += s.counts[i];
+    rows += `<tr class="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 transition">
+      <td class="py-3 px-4 text-center">${i + 1}</td><td class="py-3 px-4 font-semibold">เดือน${mName}</td>
+      <td class="py-3 px-4 text-center">${s.counts[i].toLocaleString()} รายการ</td>
+      <td class="py-3 px-4 text-right font-bold text-purple-600 dark:text-purple-400">${money(s.fees[i])} บาท</td></tr>`;
+  });
+  container.innerHTML = `<table class="w-full text-left text-xs">
+    <thead class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 uppercase tracking-wider font-bold">
+      <tr><th class="py-3.5 px-4 w-16 text-center">เดือนที่</th><th class="py-3.5 px-4">เดือน</th><th class="py-3.5 px-4 text-center">จำนวนรายการรับชำระ</th><th class="py-3.5 px-4 text-right">ยอดจัดเก็บค่าธรรมเนียม</th></tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">${rows}
+      <tr class="bg-slate-50 dark:bg-slate-800/60 font-extrabold text-sm">
+        <td colspan="2" class="py-4 px-4 text-right">รวมยอดจัดเก็บทั้งสิ้น:</td>
+        <td class="py-4 px-4 text-center text-emerald-700 dark:text-emerald-400">${totalCnt.toLocaleString()} รายการ</td>
+        <td class="py-4 px-4 text-right text-purple-600 dark:text-purple-400 text-base">${money(totalFee)} บาท</td>
+      </tr></tbody></table>`;
+}
+
+function renderDetailReportTable(filtered, container) {
+  if (!filtered.length) { container.innerHTML = '<div class="text-center py-12 text-slate-400 dark:text-slate-500 font-medium">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</div>'; return; }
+  const rows = filtered.map((it, i) => `<tr class="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 transition">
+      <td class="py-3 px-4 text-center">${i + 1}</td><td class="py-3 px-4 font-bold text-emerald-600 dark:text-emerald-400">${esc(it.permanentId)}</td>
+      <td class="py-3 px-4 font-semibold">${esc(it.shopName)}</td><td class="py-3 px-4 text-xs text-slate-500 dark:text-slate-400">${esc(it.licenseType)}</td>
+      <td class="py-3 px-4">${esc(it.appName)}</td><td class="py-3 px-4">${esc(it.appType)}</td>
+      <td class="py-3 px-4">${formatThaiDate(it.issueDate)}</td><td class="py-3 px-4 text-right font-bold text-purple-600 dark:text-purple-400">${money(it.fee)} บาท</td></tr>`).join('');
+  container.innerHTML = `<table class="w-full text-left text-xs">
+    <thead class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 uppercase tracking-wider font-bold">
+      <tr><th class="py-3.5 px-4 w-12 text-center">ที่</th><th class="py-3.5 px-4 w-32">รหัสถาวร</th><th class="py-3.5 px-4">ชื่อสถานประกอบการ</th><th class="py-3.5 px-4">ประเภทใบอนุญาต</th><th class="py-3.5 px-4">ผู้ยื่นคำขอ</th><th class="py-3.5 px-4">สถานะคำขอ</th><th class="py-3.5 px-4">วันที่อนุญาต</th><th class="py-3.5 px-4 text-right">ค่าธรรมเนียม</th></tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">${rows}</tbody></table>`;
+}
+
+function exportSelectedReportExcel() {
+  const filtered = filterReportRows();
+  const repType = document.getElementById('reportTypeSelect').value;
+  const org = getOrgSettings();
+  const sub = document.getElementById('reportSubTitle').textContent;
+  let rows = [], filename = 'Report_Export.xlsx';
+
+  if (repType === 'official') {
+    filename = 'Official_Statistics_Report.xlsx';
+    rows = [['รายงานการออกใบอนุญาตและหนังสือรับรองการแจ้ง (สถิติทางการ)'], [org.orgSub], [sub], [],
+      ['รหัส', 'ชื่อสถานประกอบการ', 'ประเภทใบอนุญาต', 'ผู้ยื่นคำขอ', 'สถานะคำขอ', 'วันที่อนุญาต', 'ค่าธรรมเนียม (บาท)']];
+    filtered.forEach(it => rows.push([it.permanentId, it.shopName, it.licenseType, it.appName, it.appType, formatThaiDate(it.issueDate), parseFloat(it.fee) || 0]));
+  } else if (repType === 'fee') {
+    filename = 'Monthly_Fee_Collection_Report.xlsx';
+    rows = [['รายงานสรุปการจัดเก็บค่าธรรมเนียมรายเดือน'], [org.orgSub], [sub], [], ['เดือน', 'จำนวนรายการ', 'ยอดจัดเก็บ (บาท)']];
+    const s = monthlyFeeSummary(filtered);
+    TH_MONTHS.forEach((m, i) => rows.push([m, s.counts[i], s.fees[i]]));
+  } else {
+    filename = 'All_Establishments_Detail_Report.xlsx';
+    rows = [['รายงานทะเบียนสถานประกอบการทั้งหมด'], [org.orgSub], [sub], [],
+      ['รหัส', 'หมวดหมู่', 'ชื่อสถานประกอบการ', 'ประเภทใบอนุญาต', 'ผู้ยื่นคำขอ', 'เบอร์โทร', 'วันที่อนุญาต', 'วันหมดอายุ', 'ค่าธรรมเนียม']];
+    filtered.forEach(it => rows.push([it.permanentId, CATEGORY_LABEL[it.category] || it.category, it.shopName, it.licenseType, it.appName, it.appPhone || '-', formatThaiDate(it.issueDate), formatThaiDate(it.expireDate), parseFloat(it.fee) || 0]));
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'รายงาน');
+  XLSX.writeFile(wb, filename);
+  showToast('สำเร็จ', 'ส่งออกไฟล์รายงานเป็น Excel เรียบร้อยแล้ว');
+}
+
+/* ===================== ตั้งค่าระบบ / นำเข้า / สำรอง / Audit Log ===================== */
+function renderAdminSettingsView() {
+  const org = getOrgSettings();
+  document.getElementById('mainContentContainer').innerHTML = `
+    <div class="space-y-6 w-full pb-12 text-slate-800 dark:text-slate-100">
+      <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 shadow-xl space-y-6">
+        <div class="border-b border-slate-200 dark:border-slate-800 pb-4">
+          <h3 class="font-bold text-lg">⚙️ ตั้งค่าระบบผู้ดูแลระบบ (Admin Settings)</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">จัดการรหัสผ่านผู้ดูแล ข้อมูลหน่วยงาน นำเข้าข้อมูล และตรวจสอบประวัติการใช้งาน</p>
+        </div>
+        <form onsubmit="handleAdminSettingsSave(event)" class="space-y-5">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div><label class="lbl">ชื่อหน่วยงานหลัก</label><input id="setOrgName" value="${esc(org.orgName)}" required class="inp"></div>
+            <div><label class="lbl">ชื่อหน่วยงานย่อย / กอง</label><input id="setOrgSub" value="${esc(org.orgSub)}" required class="inp"></div>
+          </div>
+          <div class="pt-3 border-t border-slate-200 dark:border-slate-800">
+            <h4 class="font-bold text-sm mb-3">🔒 เปลี่ยนรหัสผ่านผู้ดูแลระบบ</h4>
+            <div><label class="lbl">รหัสผ่านใหม่ (เว้นว่างถ้าไม่ต้องการเปลี่ยน)</label><input id="setAdminPwd" type="password" placeholder="••••" class="inp"></div>
+          </div>
+
+          <div class="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
+            <h4 class="font-bold text-sm">📥 นำเข้าข้อมูลย้อนหลังแบบกลุ่มจากไฟล์ Excel (Bulk Import)</h4>
+            <p class="text-xs text-slate-500 dark:text-slate-400">ดาวน์โหลดแม่แบบ กรอกข้อมูล แล้วอัปโหลดกลับเข้าระบบ (รองรับวันที่แบบ ค.ศ. และ พ.ศ. เช่น 15/01/2569)</p>
+            <div class="flex flex-wrap gap-3 pt-1">
+              <button type="button" onclick="downloadImportTemplate()" class="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition">📄 ดาวน์โหลดแม่แบบนำเข้า</button>
+              <label class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-md cursor-pointer inline-flex items-center">
+                📁 เลือกไฟล์ Excel สำหรับ Import <input type="file" accept=".xlsx, .xls, .csv" onchange="handleBulkImportExcel(event)" class="hidden">
+              </label>
+            </div>
+          </div>
+
+          <div class="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
+            <h4 class="font-bold text-sm">💾 สำรองฐานข้อมูลทั้งหมด (Database Backup)</h4>
+            <p class="text-xs text-slate-500 dark:text-slate-400">ไฟล์สำรองใช้รูปแบบเดียวกับแม่แบบนำเข้า สามารถนำเข้ากลับได้</p>
+            <button type="button" onclick="exportFullDatabaseBackup()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-md">📥 สำรองข้อมูลทั้งหมด (.xlsx)</button>
+          </div>
+
+          <div class="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
+            <div class="flex items-center justify-between">
+              <h4 class="font-bold text-sm">📜 ประวัติการใช้งานระบบ (Audit Log) – 100 รายการล่าสุด</h4>
+              <button type="button" onclick="loadAuditLogs()" class="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 rounded-xl text-xs font-bold">🔄 รีเฟรช</button>
+            </div>
+            <div id="auditLogContainer" class="max-h-72 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-slate-50 dark:bg-slate-800/40 text-xs space-y-2">กำลังโหลดประวัติ...</div>
+          </div>
+
+          <div class="pt-5 flex justify-end gap-3 border-t border-slate-200 dark:border-slate-800">
+            <button type="submit" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold shadow-lg shadow-emerald-600/25 transition">💾 บันทึกการตั้งค่า</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+  loadAuditLogs();
+}
+
+function loadAuditLogs() {
+  const container = document.getElementById('auditLogContainer');
+  if (container) container.textContent = 'กำลังโหลดประวัติ...';
+  google.script.run
+    .withSuccessHandler(function (logs) {
+      const c = document.getElementById('auditLogContainer');
+      if (!c) return;
+      if (!logs || !logs.length) { c.innerHTML = '<div class="text-center text-slate-400 dark:text-slate-500 py-4">ยังไม่มีประวัติการใช้งานในระบบ</div>'; return; }
+      c.innerHTML = logs.map(l => `<div class="flex justify-between items-start gap-3 border-b border-slate-200 dark:border-slate-800 pb-1.5">
+        <div><span class="font-bold text-emerald-600 dark:text-emerald-400">[${esc(l.action)}]</span> <span class="text-slate-700 dark:text-slate-300">${esc(l.detail)}</span><div class="text-[10px] text-slate-400 dark:text-slate-500">${esc(l.user)}</div></div>
+        <div class="text-[11px] text-slate-400 dark:text-slate-500 whitespace-nowrap">${esc(l.timestamp)}</div></div>`).join('');
+    })
+    .withFailureHandler(function (err) {
+      const c = document.getElementById('auditLogContainer');
+      if (c) c.innerHTML = '<div class="text-center text-rose-500 py-4">โหลดประวัติไม่สำเร็จ: ' + esc((err && err.message) || err) + '</div>';
+    })
+    .getAuditLogs();
+}
+
+const IMPORT_HEADERS = ['หมวดหมู่', 'รหัสถาวร', 'ชื่อผู้ยื่นคำขอ', 'ชื่อสถานประกอบการ', 'ประเภทใบอนุญาต', 'เบอร์โทรศัพท์', 'เลขที่', 'หมู่ที่', 'พื้นที่', 'ค่าธรรมเนียม', 'เลขที่ใบเสร็จ', 'วันที่อนุญาต', 'วันหมดอายุ', 'สถานะคำขอ', 'หมายเหตุ'];
+
+function downloadImportTemplate() {
+  const ws = XLSX.utils.aoa_to_sheet([
+    IMPORT_HEADERS,
+    ['cert-food', '', 'นายสมชาย ใจดี', 'ร้านข้าวมันไก่', 'สถานที่จำหน่ายอาหาร (พื้นที่ไม่เกิน 200 ตร.ม.)', '0812345678', '99', '3', 50, 500, '001/2569', '15/01/2569', '', 'รายเดิม', '']
+  ]);
+  const ws2 = XLSX.utils.aoa_to_sheet([['รหัสหมวดหมู่ (ใส่ในคอลัมน์ หมวดหมู่)', 'ความหมาย']].concat(Object.keys(CATEGORY_LABEL).map(k => [k, CATEGORY_LABEL[k]])));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'ข้อมูลนำเข้า');
+  XLSX.utils.book_append_sheet(wb, ws2, 'รหัสหมวดหมู่');
+  XLSX.writeFile(wb, 'แม่แบบนำเข้าข้อมูล.xlsx');
+}
+
+function normalizeDateValue(v) {
+  if (v === null || v === undefined || v === '') return '';
+  if (typeof v === 'number') {
+    const d = new Date(Math.round((v - 25569) * 86400000));
+    return toIso(new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  }
+  const s = String(v).trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) { let y = +m[1]; if (y > 2400) y -= 543; return y + '-' + pad2(m[2]) + '-' + pad2(m[3]); }
+  m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);
+  if (m) { let y = +m[3]; if (y > 2400) y -= 543; return y + '-' + pad2(m[2]) + '-' + pad2(m[1]); }
+  return '';
+}
+
+function resolveCategory(v) {
+  const s = String(v || '').trim();
+  if (CATEGORY_LABEL[s]) return s;
+  const k = Object.keys(CATEGORY_LABEL).find(key => CATEGORY_LABEL[key] === s);
+  if (k) return k;
+  if (/ตลาด/.test(s)) return 'lic-market';
+  if (/อันตราย/.test(s)) return 'lic-health';
+  if (/สาธารณะ/.test(s)) return 'lic-public';
+  if (/ปฏิกูล|มูลฝอย/.test(s)) return 'lic-trash';
+  if (/เกิน\s*200/.test(s)) return 'lic-food';
+  return 'cert-food';
+}
+
+function pick(r, keys) {
+  for (let i = 0; i < keys.length; i++) {
+    const v = r[keys[i]];
+    if (v !== undefined && v !== null && String(v).trim() !== '') return v;
+  }
+  return '';
+}
+
+function handleBulkImportExcel(e) {
+  const input = e.target;
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function (evt) {
+    try {
+      const wb = XLSX.read(new Uint8Array(evt.target.result), { type: 'array' });
+      const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '', raw: true });
+      if (!json.length) throw new Error('ไม่พบข้อมูลในไฟล์ Excel');
+
+      const rowsToImport = [];
+      let skipped = 0;
+      json.forEach(r => {
+        const appName = String(pick(r, ['ชื่อผู้ยื่นคำขอ', 'appName'])).trim();
+        const shopName = String(pick(r, ['ชื่อสถานประกอบการ', 'shopName'])).trim();
+        if (!appName && !shopName) { skipped++; return; }
+        const category = resolveCategory(pick(r, ['หมวดหมู่', 'category']));
+        const issueDate = normalizeDateValue(pick(r, ['วันที่อนุญาต', 'issueDate'])) || todayIso();
+        const row = {
+          category: category,
+          permanentId: String(pick(r, ['รหัสถาวร', 'permanentId'])).trim(),
+          appName: appName || '-',
+          shopName: shopName || '-',
+          licenseType: String(pick(r, ['ประเภทใบอนุญาต', 'licenseType']) || CATEGORY_LABEL[category]),
+          appPhone: String(pick(r, ['เบอร์โทรศัพท์', 'appPhone'])),
+          appNo: String(pick(r, ['เลขที่', 'appNo'])),
+          appMoo: String(pick(r, ['หมู่ที่', 'appMoo'])),
+          appSubdistrict: 'เชิงดอย', appDistrict: 'ดอยสะเก็ด', appProvince: 'เชียงใหม่',
+          fee: parseFloat(pick(r, ['ค่าธรรมเนียม', 'fee'])) || 0,
+          receiptNo: String(pick(r, ['เลขที่ใบเสร็จ', 'receiptNo'])),
+          issueDate: issueDate,
+          expireDate: normalizeDateValue(pick(r, ['วันหมดอายุ', 'expireDate'])),
+          appType: String(pick(r, ['สถานะคำขอ', 'appType']) || 'รายเดิม'),
+          remark: String(pick(r, ['หมายเหตุ', 'remark']))
+        };
+        const area = pick(r, ['พื้นที่', 'พื้นที่/แผง', 'shopArea']);
+        if (category === 'lic-market') row.marketStalls = parseInt(area, 10) || 0;
+        else row.shopArea = category === 'lic-public' ? String(area) : (parseFloat(area) || 0);
+        rowsToImport.push(row);
+      });
+
+      if (!rowsToImport.length) throw new Error('ไม่พบแถวที่มีชื่อผู้ยื่นคำขอหรือชื่อสถานประกอบการ');
+      showToast('กำลังนำเข้า', `กำลังบันทึก ${rowsToImport.length} รายการ${skipped ? ` (ข้ามแถวว่าง ${skipped})` : ''}...`);
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (res && res.success) {
+            showModal('นำเข้าสำเร็จ', `นำเข้าข้อมูลเรียบร้อย ${res.count} รายการ`, 'success');
+            loadData();
+            loadAuditLogs();
+          } else {
+            showModal('ข้อผิดพลาด', (res && res.message) || 'ไม่สามารถนำเข้าข้อมูลได้', 'error');
+          }
+        })
+        .withFailureHandler(failHandler('นำเข้าข้อมูลไม่สำเร็จ'))
+        .importBulkEstablishmentData(rowsToImport);
+    } catch (err) {
+      showModal('ข้อผิดพลาด', 'อ่านไฟล์ Excel ไม่สำเร็จ: ' + err.message, 'error');
+    } finally {
+      input.value = '';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function exportFullDatabaseBackup() {
+  if (!allData.length) { showModal('แจ้งเตือน', 'ไม่มีข้อมูลในระบบสำหรับสำรองข้อมูล', 'warning'); return; }
+  const rows = [IMPORT_HEADERS];
+  allData.slice().sort((a, b) => a.category.localeCompare(b.category) || a.sheetRow - b.sheetRow).forEach(it => {
+    rows.push([
+      it.category || '', it.permanentId || '', it.appName || '', it.shopName || '', it.licenseType || '',
+      it.appPhone || '', it.appNo || '', it.appMoo || '',
+      it.category === 'lic-market' ? (it.marketStalls || 0) : (it.shopArea || ''),
+      parseFloat(it.fee) || 0, it.receiptNo || '', it.issueDate || '', it.expireDate || '', it.appType || '', it.remark || ''
+    ]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Database_Backup');
+  XLSX.writeFile(wb, 'Backup_' + todayIso() + '.xlsx');
+  showToast('สำเร็จ', 'สำรองข้อมูลทั้งหมดเรียบร้อยแล้ว');
+}
+
+function handleAdminSettingsSave(e) {
+  e.preventDefault();
+  const orgName = document.getElementById('setOrgName').value.trim();
+  const orgSub = document.getElementById('setOrgSub').value.trim();
+  const newPwd = document.getElementById('setAdminPwd').value.trim();
+  localStorage.setItem('ORG_SETTINGS', JSON.stringify({ orgName, orgSub }));
+  if (newPwd) localStorage.setItem('ADMIN_PWD', newPwd);
+  showToast('สำเร็จ', 'บันทึกการตั้งค่าเรียบร้อยแล้ว');
+  setTimeout(() => switchMenu('dashboard'), 800);
+}
+</script>
