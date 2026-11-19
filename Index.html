@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="th" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบจัดการหนังสือรับรองการแจ้งและใบอนุญาตสาธารณสุข</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Noto Sans Thai', 'Plus Jakarta Sans', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <!-- Google Fonts: Noto Sans Thai & Plus Jakarta Sans -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <!-- SheetJS (xlsx) สำหรับจัดการ Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Chart.js สำหรับแสดงกราฟสถิติ -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <style>
+    body { font-family: 'Noto Sans Thai', 'Plus Jakarta Sans', sans-serif; transition: background-color 0.3s ease, color 0.3s ease; letter-spacing: 0.01em; }
+    
+    .inp { width: 100%; padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid #cbd5e1; outline: none; font-size: 1rem; transition: all 0.2s ease; background-color: #f8fafc; color: #1e293b; font-family: 'Noto Sans Thai', sans-serif; }
+    .dark .inp { background-color: #0f172a; border-color: #334155; color: #f8fafc; }
+    .inp:focus { border-color: #059669; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.2); background-color: #ffffff; }
+    .dark .inp:focus { background-color: #020617; border-color: #34d399; color: #f8fafc; }
+    
+    .lbl { display: block; font-size: 0.875rem; font-weight: 600; color: #475569; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.03em; }
+    .dark .lbl { color: #94a3b8; }
+    
+    /* สีตัวอักษรเมนูด้านซ้ายในโหมดสว่างให้เข้มคมชัด */
+    aside nav .nav-item {
+      color: #064e3b !important;
+      font-weight: 600;
+    }
+    aside nav .nav-item:hover {
+      background-color: #d1fae5 !important;
+      color: #022c22 !important;
+    }
+    aside nav .menu-category-label {
+      color: #047857 !important;
+      font-weight: 800 !important;
+    }
+    
+    /* โหมดมืด */
+    .dark aside nav .nav-item {
+      color: #cbd5e1 !important;
+    }
+    .dark aside nav .nav-item:hover {
+      background-color: #1e293b !important;
+      color: #ffffff !important;
+    }
+    .dark aside nav .menu-category-label {
+      color: #34d399 !important;
+    }
+
+    .active-menu { 
+      background: linear-gradient(135deg, #059669 0%, #047857 100%) !important; 
+      color: #ffffff !important; 
+      font-weight: 700; 
+      box-shadow: 0 4px 15px rgba(5, 150, 105, 0.35);
+    }
+    .active-menu, .active-menu .menu-text {
+      color: #ffffff !important;
+    }
+    
+    .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+    .accordion-content.open { max-height: 3000px; }
+
+    @keyframes fadeInSlide {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .page-transition { animation: fadeInSlide 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+    aside nav::-webkit-scrollbar, div::-webkit-scrollbar { width: 6px; height: 6px; }
+    aside nav::-webkit-scrollbar-thumb, div::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    .dark aside nav::-webkit-scrollbar-thumb, .dark div::-webkit-scrollbar-thumb { background: #334155; }
+
+    aside.sidebar-collapsed { width: 5rem !important; }
+    aside.sidebar-collapsed .menu-text { display: none !important; }
+    aside.sidebar-collapsed .menu-category-label { display: none !important; }
+    aside.sidebar-collapsed nav { padding: 0.75rem 0.5rem !important; }
+    aside.sidebar-collapsed .nav-item { justify-content: center !important; padding: 0.75rem 0 !important; }
+    aside.sidebar-collapsed .user-info-section { display: none !important; }
+  </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col text-sm md:text-base">
+
+  <!-- Toast Container -->
+  <div id="toastContainer" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Welcome Pop-up Modal -->
+  <div id="welcomeModal" class="hidden fixed inset-0 z-60 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 transition-all duration-300">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 max-w-lg w-full shadow-2xl space-y-6 text-slate-800 dark:text-slate-100 text-center transform scale-95 transition-transform duration-300" id="welcomeModalContent">
+      <div class="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center text-white text-3xl shadow-lg shadow-emerald-500/30">
+        🏛️
+      </div>
+      <div class="space-y-2">
+        <h2 class="text-xl font-extrabold text-slate-900 dark:text-white">ยินดีต้อนรับสู่ระบบจัดการทะเบียน</h2>
+        <p class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">กองสาธารณสุขและสิ่งแวดล้อม เทศบาลตำบลดอยสะเก็ด</p>
+        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed pt-2">
+          ระบบสารสนเทศสำหรับบริหารจัดการหนังสือรับรองการแจ้งและใบอนุญาตสาธารณสุข ตรวจสอบวันหมดอายุ และออกรายงานสถิติได้อย่างรวดเร็วและแม่นยำ
+        </p>
+      </div>
+      <div class="pt-2">
+        <button onclick="closeWelcomeModal()" class="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl font-bold shadow-lg shadow-emerald-600/30 transition transform hover:scale-[1.02]">
+          🚀 เริ่มต้นใช้งานระบบ
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Layout -->
+  <div class="flex flex-col h-screen overflow-hidden">
+    
+    <!-- Top Header Bar -->
+    <header class="h-20 bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-950 dark:from-slate-950 dark:via-emerald-950 dark:to-slate-900 border-b border-emerald-800/40 dark:border-slate-800 px-6 md:px-8 flex items-center justify-between z-35 shrink-0 shadow-md text-white">
+      <div class="flex items-center gap-4">
+        <button onclick="toggleSidebar()" class="w-11 h-11 rounded-xl bg-emerald-800/40 hover:bg-emerald-700/50 border border-emerald-600/30 backdrop-blur-md flex items-center justify-center transition text-white shadow-2xs text-lg shrink-0" title="ย่อ / ขยายเมนู">☰</button>
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-700 p-0.5 shadow-[0_4px_20px_rgba(52,211,153,0.4)] flex items-center justify-center shrink-0 transform hover:scale-105 transition-transform duration-300">
+          <svg class="w-full h-full drop-shadow-md" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="5" width="34" height="30" rx="6" fill="#ffffff" stroke="#34d399" stroke-width="2"/>
+            <path d="M3 11C3 7.68629 5.68629 5 9 5H31C34.3137 5 37 7.68629 37 11V16H3V11Z" fill="url(#headerBright)"/>
+            <text x="8" y="13" fill="#ffffff" font-size="5.5" font-weight="900" font-family="'Plus Jakarta Sans', sans-serif" letter-spacing="1">LICENSE</text>
+            <rect x="8" y="20" width="16" height="2.5" rx="1.25" fill="#059669"/>
+            <rect x="8" y="25" width="12" height="2" rx="1" fill="#64748b"/>
+            <rect x="8" y="29" width="9" height="2" rx="1" fill="#94a3b8"/>
+            <circle cx="29" cy="26" r="5" fill="url(#badgeBright)" stroke="#ffffff" stroke-width="1.5"/>
+            <path d="M27 26L28.2 27.2L31.2 24.2" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <defs>
+              <linearGradient id="headerBright" x1="3" y1="5" x2="37" y2="16" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#10b981"/>
+                <stop offset="100%" stop-color="#047857"/>
+              </linearGradient>
+              <linearGradient id="badgeBright" x1="24" y1="21" x2="34" y2="31" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#34d399"/>
+                <stop offset="100%" stop-color="#059669"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div>
+          <h1 class="font-extrabold text-base md:text-xl tracking-tight text-white leading-tight drop-shadow-sm">ระบบจัดการหนังสือรับรองการแจ้งและใบอนุญาตสาธารณสุข</h1>
+          <p class="text-xs text-emerald-300 font-bold tracking-widest uppercase mt-0.5 font-['Plus_Jakarta_Sans']">SMART PUBLIC HEALTH LICENSING SYSTEM</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 shrink-0">
+        <button onclick="toggleCommandPalette()" class="hidden md:flex items-center gap-3 px-4 py-2.5 rounded-xl bg-emerald-800/40 hover:bg-emerald-700/50 border border-emerald-600/30 transition text-sm text-white shadow-2xs backdrop-blur-md">
+          <span>🔍 ค้นหาด่วน...</span>
+          <kbd class="bg-black/30 text-emerald-300 px-2 py-0.5 rounded text-xs font-mono border border-emerald-500/20">Ctrl K</kbd>
+        </button>
+        <button onclick="toggleDarkMode()" class="w-11 h-11 rounded-xl bg-emerald-800/40 hover:bg-emerald-700/50 border border-emerald-600/30 backdrop-blur-md flex items-center justify-center transition text-white shadow-2xs text-lg" id="darkModeIcon" title="สลับโหมดสี">🌙</button>
+        <button onclick="toggleFullScreen()" class="w-11 h-11 rounded-xl bg-emerald-800/40 hover:bg-emerald-700/50 border border-emerald-600/30 backdrop-blur-md flex items-center justify-center transition text-white shadow-2xs text-lg" title="ขยายเต็มจอ">⛶</button>
+      </div>
+    </header>
+
+    <!-- Body Layout -->
+    <div class="flex flex-1 overflow-hidden">
+      
+      <!-- Sidebar -->
+      <aside id="appSidebar" class="w-80 bg-emerald-50/70 dark:bg-slate-900 border-r border-emerald-200/60 dark:border-slate-800 flex flex-col z-30 shrink-0 transition-all duration-300">
+        <nav class="flex-1 overflow-y-auto p-5 space-y-5 text-sm font-medium">
+          
+          <div>
+            <div class="menu-category-label text-xs font-extrabold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 px-3 mb-2">ภาพรวมระบบ</div>
+            <div class="space-y-1.5">
+              <button onclick="switchMenu('dashboard')" id="menu-dashboard" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition text-sm" title="หน้าแรก / ภาพรวมระบบ">
+                <span class="text-base shrink-0">📊</span>
+                <span class="menu-text">หน้าแรก / ภาพรวมระบบ</span>
+              </button>
+              <button onclick="switchMenu('management')" id="menu-management" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition text-sm" title="ค้นหาและจัดการทะเบียน">
+                <span class="text-base shrink-0">🗂️</span>
+                <span class="menu-text">ค้นหาและจัดการทะเบียน</span>
+              </button>
+            </div>
+          </div>
+          
+          <div>
+            <div class="menu-category-label text-xs font-extrabold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 px-3 mb-2">ทะเบียนหนังสือรับรองการแจ้ง</div>
+            <div class="space-y-1.5">
+              <button onclick="switchMenu('cert-food')" id="menu-cert-food" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition text-sm text-left" title="การจำหน่ายอาหารหรือสะสมอาหาร (พื้นที่ไม่เกิน 200 ตร.ม.)">
+                <span class="text-base shrink-0">🍲</span>
+                <span class="menu-text">การจำหน่ายอาหารหรือสะสมอาหาร<br><span class="text-xs text-slate-500 dark:text-slate-400 font-normal">(พื้นที่ไม่เกิน 200 ตร.ม.)</span></span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="menu-category-label text-xs font-extrabold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 px-3 mb-2">ทะเบียนใบอนุญาต</div>
+            <div class="space-y-1.5">
+              <button onclick="switchMenu('lic-food')" id="menu-lic-food" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition text-sm text-left" title="การจำหน่ายอาหารหรือสะสมอาหาร (พื้นที่เกิน 200 ตารางเมตรขึ้นไป)">
+                <span class="text-base shrink-0">🥘</span>
+                <span class="menu-text">การจำหน่ายอาหารหรือสะสมอาหาร<br><span class="text-xs text-slate-500 dark:text-slate-400 font-normal">(พื้นที่เกิน 200 ตารางเมตรขึ้นไป)</span></span>
+              </button>
+              <button onclick="switchMenu('lic-market')" id="menu-lic-market" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition text-sm" title="การจัดตั้งตลาด">
+                <span class="text-base shrink-0">🛒</span>
+                <span class="menu-text">การจัดตั้งตลาด</span>
+              </button>
+              <button onclick="switchMenu('lic-health')" id="menu-lic-health" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition text-sm" title="กิจการที่เป็นอันตรายต่อสุขภาพ">
+                <span class="text-base shrink-0">⚠️</span>
+                <span class="menu-text">กิจการที่เป็นอันตรายต่อสุขภาพ</span>
+              </button>
+              <button onclick="switchMenu('lic-public')" id="menu-lic-public" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition text-sm" title="จำหน่ายสินค้าในที่สาธารณะ">
+                <span class="text-base shrink-0">📦</span>
+                <span class="menu-text">จำหน่ายสินค้าในที่สาธารณะ</span>
+              </button>
+              <button onclick="switchMenu('lic-trash')" id="menu-lic-trash" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition text-sm" title="เก็บ ขน หรือกำจัดสิ่งปฏิกูล">
+                <span class="text-base shrink-0">♻️</span>
+                <span class="menu-text">เก็บ ขน หรือกำจัดสิ่งปฏิกูล</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="menu-category-label text-xs font-extrabold uppercase tracking-wider text-emerald-800 dark:text-emerald-400 px-3 mb-2">งานทะเบียนและบริการ</div>
+            <div class="space-y-1.5">
+              <button onclick="switchMenu('action-renew')" id="menu-action-renew" class="nav-item w-full flex items-center justify-between px-4 py-3 rounded-xl transition text-sm" title="ต่ออายุใบอนุญาต">
+                <span class="flex items-center gap-3">
+                  <span class="text-base shrink-0">💳</span>
+                  <span class="menu-text">ต่ออายุใบอนุญาต</span>
+                </span>
+                <span id="renewBadge" class="menu-text bg-emerald-600 text-white font-bold px-2 py-0.5 rounded-md text-xs">0</span>
+              </button>
+              <button onclick="switchMenu('action-edit-cancel')" id="menu-action-edit-cancel" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition text-sm" title="เปลี่ยนแปลง / ยกเลิกกิจการ">
+                <span class="text-base shrink-0">📝</span>
+                <span class="menu-text">เปลี่ยนแปลง / ยกเลิกกิจการ</span>
+              </button>
+              <button onclick="switchMenu('reports')" id="menu-reports" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition text-sm" title="รายงานและสถิติ">
+                <span class="text-base shrink-0">📈</span>
+                <span class="menu-text">รายงานและสถิติ</span>
+              </button>
+              <button onclick="requestAdminAccess()" id="menu-admin-settings" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition text-sm" title="ตั้งค่าระบบ (Admin)">
+                <span class="text-base shrink-0">🔒</span>
+                <span class="menu-text">ตั้งค่าระบบ (Admin)</span>
+              </button>
+            </div>
+          </div>
+
+        </nav>
+
+        <div class="user-info-section p-4 border-t border-emerald-200/60 dark:border-slate-800 flex items-center justify-between bg-emerald-100/50 dark:bg-slate-900/50">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-emerald-600/20 dark:bg-emerald-500/20 flex items-center justify-center text-emerald-800 dark:text-emerald-400 font-bold text-sm">👤</div>
+            <div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 leading-tight">ผู้ใช้งาน</p>
+              <p class="text-sm font-bold text-slate-800 dark:text-slate-200 leading-tight">ผู้ดูแลระบบ</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="requestAdminAccess()" class="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 text-sm transition shadow-2xs" title="ตั้งค่าสิทธิ์">🔑</button>
+            <button onclick="switchMenu('dashboard')" class="w-8 h-8 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 flex items-center justify-center text-rose-600 text-sm transition" title="หน้าแรก">⏹</button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Content Area -->
+      <div class="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 page-transition">
+        <div class="h-14 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-8 flex items-center shrink-0">
+          <h2 id="pageHeaderTitle" class="font-bold text-base text-emerald-700 dark:text-emerald-400 flex items-center gap-2">📌 ภาพรวมระบบ</h2>
+        </div>
+
+        <main class="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 max-w-[1600px] w-full mx-auto">
+          <div class="flex items-center gap-2 text-xs md:text-sm font-semibold text-slate-600 dark:text-slate-400 pb-1">
+            <span class="text-emerald-600 dark:text-emerald-400 font-bold">🏛️</span>
+            <span>กองสาธารณสุขและสิ่งแวดล้อม เทศบาลตำบลดอยสะเก็ด</span>
+          </div>
+
+          <!-- Stats Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+            <div class="p-5 rounded-2xl shadow-md relative overflow-hidden group bg-gradient-to-br from-emerald-600 to-teal-800 text-white transform hover:-translate-y-1 transition-all duration-300">
+              <div class="absolute -right-3 -bottom-3 text-6xl opacity-20">📋</div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-100">ทะเบียนทั้งหมด</span>
+                <div class="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white text-base font-bold">📂</div>
+              </div>
+              <h4 id="statCatTotal" class="text-2xl font-extrabold text-white">0 รายการ</h4>
+            </div>
+
+            <div class="p-5 rounded-2xl shadow-md relative overflow-hidden group bg-gradient-to-br from-teal-500 to-emerald-700 text-white transform hover:-translate-y-1 transition-all duration-300">
+              <div class="absolute -right-3 -bottom-3 text-6xl opacity-20">🌟</div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-teal-100">กิจการรายใหม่</span>
+                <div class="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white text-base font-bold">✨</div>
+              </div>
+              <h4 id="statCatNew" class="text-2xl font-extrabold text-white">0 รายการ</h4>
+            </div>
+
+            <div class="p-5 rounded-2xl shadow-md relative overflow-hidden group bg-gradient-to-br from-rose-700 to-red-900 text-white transform hover:-translate-y-1 transition-all duration-300">
+              <div class="absolute -right-3 -bottom-3 text-6xl opacity-20">🚨</div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-rose-100">หมดอายุแล้ว</span>
+                <div class="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white text-base font-bold">⚠️</div>
+              </div>
+              <h4 id="statCatRenew" class="text-2xl font-extrabold text-white">0 รายการ</h4>
+            </div>
+
+            <div class="p-5 rounded-2xl shadow-md relative overflow-hidden group bg-gradient-to-br from-amber-600 to-orange-700 text-white transform hover:-translate-y-1 transition-all duration-300">
+              <div class="absolute -right-3 -bottom-3 text-6xl opacity-20">⏰</div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-amber-100">ใกล้หมดอายุ (30 วัน)</span>
+                <div class="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white text-base font-bold">⏳</div>
+              </div>
+              <h4 id="statCatCancel" class="text-2xl font-extrabold text-white">0 รายการ</h4>
+            </div>
+
+            <div class="p-5 rounded-2xl shadow-md relative overflow-hidden group bg-gradient-to-br from-teal-700 via-emerald-700 to-green-800 text-white transform hover:-translate-y-1 transition-all duration-300">
+              <div class="absolute -right-3 -bottom-3 text-6xl opacity-20">💵</div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-teal-100">รายรับค่าธรรมเนียม</span>
+                <div class="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white text-base font-bold">💰</div>
+              </div>
+              <h4 id="statFee" class="text-2xl font-extrabold text-white">0 บาท</h4>
+            </div>
+          </div>
+
+          <div id="mainContentContainer"></div>
+        </main>
+
+        <!-- Footer Bar -->
+        <footer class="py-3.5 px-8 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row items-center justify-between shrink-0 gap-2">
+          <div>ระบบจัดการหนังสือรับรองการแจ้งและใบอนุญาตสาธารณสุข © 2026</div>
+          <div>Powered by Google Apps Script & Google Sheets</div>
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <!-- Command Palette Modal (Ctrl + K) -->
+  <div id="commandPaletteModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-start justify-center pt-24 p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden">
+      <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+        <span class="text-emerald-600 dark:text-emerald-400 text-base">🔍</span>
+        <input type="text" id="commandInput" class="w-full bg-transparent border-none outline-none text-slate-800 dark:text-slate-100 placeholder-slate-400 text-sm" placeholder="พิมพ์ชื่อเมนูที่ต้องการค้นหา..." oninput="filterCommandList(this.value)">
+        <button onclick="toggleCommandPalette()" class="text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700">ESC</button>
+      </div>
+      <div class="p-2 max-h-72 overflow-y-auto space-y-1 text-sm" id="commandList">
+        <div onclick="switchMenu('dashboard'); toggleCommandPalette();" class="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer flex items-center gap-3 text-slate-700 dark:text-slate-300 transition">📊 หน้าแรก / ภาพรวมระบบ</div>
+        <div onclick="switchMenu('management'); toggleCommandPalette();" class="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer flex items-center gap-3 text-slate-700 dark:text-slate-300 transition">🗂️ ค้นหาและจัดการทะเบียน</div>
+        <div onclick="switchMenu('cert-food'); toggleCommandPalette();" class="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer flex items-center gap-3 text-slate-700 dark:text-slate-300 transition">🍲 การจำหน่ายอาหารหรือสะสมอาหาร (พื้นที่ไม่เกิน 200 ตร.ม.)</div>
+        <div onclick="switchMenu('lic-food'); toggleCommandPalette();" class="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer flex items-center gap-3 text-slate-700 dark:text-slate-300 transition">🥘 การจำหน่ายอาหารหรือสะสมอาหาร (พื้นที่เกิน 200 ตารางเมตรขึ้นไป)</div>
+        <div onclick="switchMenu('action-renew'); toggleCommandPalette();" class="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer flex items-center gap-3 text-slate-700 dark:text-slate-300 transition">💳 ต่ออายุใบอนุญาต</div>
+        <div onclick="switchMenu('reports'); toggleCommandPalette();" class="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer flex items-center gap-3 text-slate-700 dark:text-slate-300 transition">📈 รายงานและสถิติ</div>
+        <div onclick="switchMenu('admin-settings'); toggleCommandPalette();" class="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer flex items-center gap-3 text-slate-700 dark:text-slate-300 transition">🔒 ตั้งค่าระบบ (Admin)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <div id="customModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 text-slate-800 dark:text-slate-100">
+      <h3 id="modalTitle" class="font-bold text-base text-emerald-700 dark:text-emerald-400">แจ้งเตือนระบบ</h3>
+      <p id="modalMessage" class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed"></p>
+      <div class="flex justify-end pt-2">
+        <button onclick="closeModal()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-semibold transition shadow-xs">รับทราบ</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="adminAuthModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 text-slate-800 dark:text-slate-100">
+      <h3 class="font-bold text-base text-emerald-700 dark:text-emerald-400">🔐 ยืนยันสิทธิ์ผู้ดูแลระบบ</h3>
+      <p class="text-xs text-slate-500 dark:text-slate-400">กรุณากรอกรหัสผ่านผู้ดูแลระบบเพื่อดำเนินการต่อ</p>
+      <input type="password" id="adminPasswordInput" class="inp text-center tracking-widest text-lg" placeholder="••••" onkeydown="if(event.key==='Enter') verifyAdminPassword()">
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeAdminAuthModal()" class="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">ยกเลิก</button>
+        <button onclick="verifyAdminPassword()" class="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold shadow-xs">ยืนยันสิทธิ์</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="renewModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 text-slate-800 dark:text-slate-100">
+      <h3 id="renewModalTitle" class="font-bold text-base text-emerald-700 dark:text-emerald-400">บันทึกต่ออายุใบอนุญาต</h3>
+      <form id="renewForm" onsubmit="handleRenewSubmit(event)" class="space-y-4 text-sm">
+        <input type="hidden" name="renewIndex">
+        <div><label class="lbl">เลขที่ใบเสร็จรับเงิน *</label><input name="receiptNo" required class="inp" placeholder="เช่น 001/2569"></div>
+        <div><label class="lbl">ค่าธรรมเนียม (บาท) *</label><input type="number" step="0.01" name="fee" required class="inp"></div>
+        <div><label class="lbl">วันที่ชำระเงิน *</label><input type="date" name="issueDate" required class="inp"></div>
+        <div><label class="lbl">รหัสผ่านยืนยันเจ้าหน้าที่ *</label><input type="password" name="adminPassword" required class="inp text-center tracking-widest" placeholder="••••"></div>
+        <div class="flex justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <button type="button" onclick="closeRenewModal()" class="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-medium hover:bg-slate-200 dark:hover:bg-slate-700">ยกเลิก</button>
+          <button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold shadow-xs">บันทึกการต่ออายุ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="editModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-4xl w-full shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto text-slate-800 dark:text-slate-100">
+      <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+        <h3 id="editModalTitle" class="font-bold text-base text-emerald-700 dark:text-emerald-400">แก้ไขข้อมูลทะเบียนสถานประกอบการ</h3>
+        <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-base font-bold">✕</button>
+      </div>
+      <form id="editForm" onsubmit="handleEditSubmit(event)" class="space-y-4 text-sm">
+        <input type="hidden" name="category">
+        <input type="hidden" name="sheetRow">
+        <input type="hidden" name="sheetName">
+        <div id="editFormBody" class="space-y-4"></div>
+        <div class="flex justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <button type="button" onclick="closeEditModal()" class="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-medium hover:bg-slate-200 dark:hover:bg-slate-700">ยกเลิก</button>
+          <button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold shadow-xs">บันทึกการเปลี่ยนแปลง</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const savedTheme = localStorage.getItem('theme') || 'light';
+      const html = document.documentElement;
+      const icons = document.querySelectorAll('#darkModeIcon');
+      
+      if (savedTheme === 'dark') {
+        html.classList.add('dark');
+        html.classList.remove('light');
+        icons.forEach(icon => icon.textContent = '☀️');
+      } else {
+        html.classList.remove('dark');
+        html.classList.add('light');
+        icons.forEach(icon => icon.textContent = '🌙');
+      }
+
+      if (localStorage.getItem('sidebar_collapsed') === 'true') {
+        const aside = document.getElementById('appSidebar');
+        if (aside) aside.classList.add('sidebar-collapsed');
+      }
+
+      if (!sessionStorage.getItem('welcomed')) {
+        const welcomeModal = document.getElementById('welcomeModal');
+        if (welcomeModal) welcomeModal.classList.remove('hidden');
+      }
+    });
+
+    function closeWelcomeModal() {
+      const welcomeModal = document.getElementById('welcomeModal');
+      if (welcomeModal) {
+        welcomeModal.classList.add('hidden');
+        sessionStorage.setItem('welcomed', 'true');
+      }
+    }
+
+    function toggleSidebar() {
+      const aside = document.getElementById('appSidebar');
+      if (aside) {
+        aside.classList.toggle('sidebar-collapsed');
+        localStorage.setItem('sidebar_collapsed', aside.classList.contains('sidebar-collapsed'));
+      }
+    }
+
+    function toggleDarkMode() {
+      const html = document.documentElement;
+      const icons = document.querySelectorAll('#darkModeIcon');
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        html.classList.add('light');
+        localStorage.setItem('theme', 'light');
+        icons.forEach(icon => icon.textContent = '🌙');
+      } else {
+        html.classList.remove('light');
+        html.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+        icons.forEach(icon => icon.textContent = '☀️');
+      }
+
+      if (typeof currentMenu !== 'undefined') {
+        refreshView(true);
+      }
+    }
+
+    function toggleFullScreen() {
+      try {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+          const docEl = document.documentElement;
+          if (docEl.requestFullscreen) {
+            docEl.requestFullscreen().catch(err => {});
+          } else if (docEl.webkitRequestFullscreen) {
+            docEl.webkitRequestFullscreen();
+          } else if (docEl.msRequestFullscreen) {
+            docEl.msRequestFullscreen();
+          }
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+          } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+          }
+        }
+      } catch (e) {}
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        toggleCommandPalette();
+      }
+      if (e.key === 'Escape') {
+        closeCommandPalette();
+      }
+    });
+
+    function toggleCommandPalette() {
+      const modal = document.getElementById('commandPaletteModal');
+      if (modal) {
+        modal.classList.toggle('hidden');
+        if (!modal.classList.contains('hidden')) {
+          const input = document.getElementById('commandInput');
+          if (input) input.focus();
+        }
+      }
+    }
+
+    function closeCommandPalette() {
+      const modal = document.getElementById('commandPaletteModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function filterCommandList(query) {
+      const list = document.getElementById('commandList');
+      if (!list) return;
+      const items = list.getElementsByTagName('div');
+      const q = query.toLowerCase();
+      for (let item of items) {
+        if (item.textContent.toLowerCase().includes(q)) {
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      }
+    }
+  </script>
+
+  <?!= include('JavaScript'); ?>
+</body>
+</html>
